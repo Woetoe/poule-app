@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WK Darts Poule</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-512.png">
+<meta name="theme-color" content="#111111">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE everyday: darts kijken met vrienden, kerst in Ally Pally
+   IDEA het scorebord en het bord zelf: zwart, rood, groen, crème
+   PICTURE de partijkaarten met setstand-knoppen; kopband als ring van bordsegmenten
+   COLOUR zwarte kop, crème/nachtzwart ground, rood accent, groen voor goed
+   TYPE Big Shoulders Display 900 + Barlow
+   LAYOUT zwarte band met titel en 3 kerncijfers, sticky tabs, kaarten in 1-3 kolommen; telefoon: één kolom */
+:root{color-scheme:light dark;--bg:light-dark(#fbf7ee,#0d0d0d);--card:light-dark(#ffffff,#171717);--soft:light-dark(#f3ecdc,#222);--ink:light-dark(#141414,#f3ede0);--mute:light-dark(#5e574b,#a9a294);--line:light-dark(#e4dccb,#2e2e2e);--red:#d01f2e;--redink:light-dark(#b01826,#ff6b74);--green:#138a4b;--good:light-dark(#0f7a41,#5fd393)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 Barlow,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3{font-family:"Big Shoulders Display",Barlow,sans-serif;font-weight:900;letter-spacing:.01em}
+.band{padding-left:max(5vw,16px);padding-right:max(5vw,16px)}
+.wrap{max-width:1100px;margin:0 auto}
+header{background:#111;color:#f3ede0;padding-top:18px;padding-bottom:24px;position:relative}
+header::after{content:"";position:absolute;left:0;right:0;bottom:0;height:8px;background:repeating-linear-gradient(90deg,#d01f2e 0 28px,#111 28px 30px,#138a4b 30px 58px,#111 58px 60px)}
+.back{display:inline-block;color:#cfc6b4;text-decoration:none;font-weight:600;padding:8px 0;min-height:40px}
+header h1{font-size:clamp(36px,7vw,56px);line-height:1;margin:0}
+header p{margin:6px 0 0;color:#cfc6b4}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px;max-width:560px}
+.kpi{background:#1f1f1f;border:1px solid #333;border-radius:10px;padding:10px 12px}
+.kpi b{display:block;font:900 clamp(28px,6vw,38px)/1 "Big Shoulders Display",sans-serif;white-space:nowrap}
+.kpi span{font-size:14px;color:#cfc6b4}
+.kpi.r b{color:#ff6b74}
+nav{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;gap:2px;overflow-x:auto}
+nav a{flex:none;padding:14px 9px 12px;color:var(--mute);text-decoration:none;font-weight:600;border-bottom:3px solid transparent;min-height:48px;position:relative}
+nav a[aria-current=page]{color:var(--ink);border-color:var(--red)}
+nav a .dot{display:inline-block;min-width:18px;height:18px;border-radius:9px;background:var(--red);color:#fff;font-size:12px;line-height:18px;text-align:center;margin-left:4px;padding:0 4px}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--red);outline-offset:2px}
+main{padding-top:22px;padding-bottom:72px}
+h2{font-size:34px;line-height:1.05;margin:0 0 4px}
+h3{font-size:24px;line-height:1.1;margin:0 0 8px}
+.lead{color:var(--mute);margin:0 0 16px;max-width:68ch}
+.note{font-size:14px;color:var(--mute)}
+.sect{margin-top:30px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.meta{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:14px;color:var(--mute)}
+.pl{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding:5px 0}
+.pl .nm{font-weight:700;font-size:18px;line-height:1.2}
+.pl .s{width:44px;height:46px;display:grid;place-items:center;background:#111;color:#f3ede0;border-radius:6px;font:900 30px "Big Shoulders Display",sans-serif}
+.pl.win .s{background:var(--red);color:#fff}
+.chips{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.chips .g{display:grid;gap:6px}
+.chips .g>span{font-size:13px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chips .row{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{flex:1 1 44px;padding:0;font:900 22px "Big Shoulders Display",sans-serif}
+.chips button[aria-pressed=true]{background:var(--red);border-color:var(--red);color:#fff}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;color:var(--mute);border-top:1px dashed var(--line);padding-top:8px;margin-top:10px}
+.jk{min-height:36px;padding:0 10px;font-size:14px}
+.jk[aria-pressed=true]{background:#f2b700;border-color:#f2b700;color:#141414}
+.pts{font-weight:700;border-radius:99px;padding:2px 10px;white-space:nowrap;font-size:14px}
+.pts.hit{background:var(--red);color:#fff}.pts.part{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}.pts.miss{background:var(--soft);color:var(--mute)}.pts.max{background:var(--soft);color:var(--ink)}
+.others{margin-top:8px;font-size:14px;display:flex;flex-wrap:wrap;gap:6px}
+.others span{background:var(--soft);border-radius:6px;padding:2px 8px;white-space:nowrap}
+.others span.ok{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
+.rhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin:26px 0 10px}
+.rhead:first-child{margin-top:0}
+.q h3{margin:8px 0 10px}
+.yn{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.yn button[aria-pressed=true]{background:var(--green);border-color:var(--green);color:#fff}
+label{display:block;font-weight:600;margin-bottom:6px}
+input[type=text],input[type=number],input[type=date],input[type=time],select,textarea{width:100%;min-height:46px;font:inherit;font-size:16px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+textarea{padding:10px;min-height:90px}
+input:disabled,select:disabled{opacity:.6}
+button{font:inherit;font-weight:700;min-height:44px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;padding:0 14px}
+button:hover{border-color:var(--ink)}
+button.primary{background:var(--red);border-color:var(--red);color:#fff}
+button.ok{background:var(--green);border-color:var(--green);color:#fff}
+button:disabled{opacity:.45;cursor:not-allowed}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:12px}
+.form .wide{grid-column:1/-1}
+.hint{font-weight:400;font-size:13px;color:var(--mute)}
+.chk{display:flex;gap:10px;align-items:center;font-weight:600;min-height:44px}
+.chk input{width:22px;height:22px}
+.rowl{display:grid;grid-template-columns:32px minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.rowl .pos{font:900 26px "Big Shoulders Display",sans-serif;color:var(--mute)}
+.rowl .nm{font-weight:700}
+.rowl small{display:block;font-size:13px;color:var(--mute)}
+.rowl .bar{height:6px;border-radius:3px;background:var(--green);margin-top:5px}
+.rowl.me .bar{background:var(--red)}.rowl.me .nm{color:var(--redink)}
+.rowl .val{font:900 30px "Big Shoulders Display",sans-serif;text-align:right;white-space:nowrap;line-height:1}
+.rowl .val small{font:600 13px Barlow,sans-serif;color:var(--good)}
+.cols{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:28px;align-items:start}
+.list .it{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.list .it small{display:block;color:var(--mute);font-size:13px}
+.list .it .btns{margin:0}
+.code{font:900 clamp(34px,9vw,52px)/1 "Big Shoulders Display",sans-serif;letter-spacing:.08em}
+.warn{color:var(--redink);font-weight:600}
+.okm{color:var(--good);font-weight:600}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:16px;text-align:center}
+.drop input{margin-top:8px;max-width:100%}
+.report{margin-top:10px;font-size:14px}
+.res{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,150px) auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.res small{display:block;color:var(--mute);font-size:13px}
+.res button{min-height:40px;padding:0 10px}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}
+th{font-size:14px;color:var(--mute);font-weight:600}
+td.r,th.r{text-align:right;white-space:nowrap}
+.empty{padding:22px;text-align:center;color:var(--mute);border:2px dashed var(--line);border-radius:12px}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:10px;font-weight:600;max-width:calc(100% - 32px);z-index:9}
+.dist{margin-top:10px;display:grid;gap:6px}
+.dist .r{display:grid;grid-template-columns:minmax(0,1fr) 3.2em;gap:8px;align-items:center;font-size:14px}
+.dist .t{position:relative;background:var(--soft);border-radius:6px;padding:4px 8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.dist .t span{position:absolute;inset:0 auto 0 0;background:color-mix(in srgb,var(--green) 28%,transparent);border-radius:6px}
+.dist .t em{position:relative;font-style:normal}
+[hidden]{display:none!important}
+@media(max-width:760px){.cols{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:420px){.res{grid-template-columns:minmax(0,1fr) auto}.res select{grid-column:1/-1;grid-row:2}}
+</style>
+</head>
+<body>
+<header class="band">
+  <div class="wrap">
+    <a class="back" href="index.html">‹ Poules</a>
+    <h1 id="hName">WK Darts Poule</h1>
+    <p id="hSub">11 dec 2026 – 3 jan 2027 · Alexandra Palace</p>
+    <div class="kpis" id="kpis" hidden>
+      <div class="kpi"><b id="kRank">#–</b><span>jouw plek</span></div>
+      <div class="kpi"><b id="kPts">0</b><span>punten</span></div>
+      <div class="kpi r"><b id="kPot">€0</b><span>pot</span></div>
+    </div>
+  </div>
+</header>
+<nav class="band" id="nav" hidden><div class="wrap" id="tabs"></div></nav>
+
+<main class="band"><div class="wrap" id="main"><p class="note">Laden…</p></div></main>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="poule.js"></script>
+<script src="xlsx.full.min.js"></script>
+<script>
+{
+const Q = new URLSearchParams(location.search);
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const eur = n => '€' + (Math.round((n || 0) * 100) / 100).toLocaleString('nl-NL', { maximumFractionDigits: 2 });
+const nl = n => String(n).replace('.', ',');
+const WEB_BASE = 'https://woetoe.github.io/poule-app/web/';
+let P = null, M = null, ME = null, busy = false, tTimer;
+
+function toast(msg) {
+  $('toast').textContent = msg; $('toast').hidden = false;
+  clearTimeout(tTimer); tTimer = setTimeout(() => { $('toast').hidden = true; }, 3500);
+}
+function fail(e) { toast(e && e.message ? e.message : 'Er ging iets mis. Heb je internet?'); }
+
+/* ------------------------------------------------------------------ instellingen-formulier (aanmaken en beheer) */
+function cfgForm(c, withName) {
+  const f = c.factors || [];
+  return `
+  <div class="card"><h3>Poule</h3><div class="form">
+    <div class="wide"><label for="fName">Naam van de poule</label><input type="text" id="fName" maxlength="40" value="${esc(c.name)}"></div>
+    ${withName ? '<div class="wide"><label for="fMe">Jouw naam</label><input type="text" id="fMe" maxlength="30" placeholder="Zoals je vrienden je kennen"></div>' : ''}
+  </div></div>
+  <div class="card sect"><h3>Inleg en prijzen</h3><div class="form">
+    <div><label for="fInleg">Inleg per persoon (€)</label><input type="number" id="fInleg" min="0" step="1" inputmode="decimal" value="${c.inleg}"></div>
+    <div><label for="fP1">1e plaats (%)</label><input type="number" id="fP1" min="0" max="100" inputmode="numeric" value="${c.prizes[0] || 0}"></div>
+    <div><label for="fP2">2e plaats (%)</label><input type="number" id="fP2" min="0" max="100" inputmode="numeric" value="${c.prizes[1] || 0}"></div>
+    <div><label for="fP3">3e plaats (%)</label><input type="number" id="fP3" min="0" max="100" inputmode="numeric" value="${c.prizes[2] || 0}"></div>
+  </div><p class="note">De pot is inleg × aantal deelnemers. Betalen regel je zelf, bijvoorbeeld met een Tikkie.</p></div>
+  <div class="card sect"><h3>Punten per partij</h3><div class="form">
+    <div><label for="fWin">Goede winnaar</label><input type="number" id="fWin" min="0" max="50" inputmode="numeric" value="${c.pts.win}"></div>
+    <div><label for="fExact">Extra voor exacte setstand</label><input type="number" id="fExact" min="0" max="50" inputmode="numeric" value="${c.pts.exact}"></div>
+  </div>
+  <p class="note">Punten per ronde worden vermenigvuldigd met de factor van die ronde.</p>
+  <div class="form">${Poule.ROUNDS.map((r, i) => `<div><label for="fF${r.n}">${r.name} <span class="hint">×</span></label><input type="number" id="fF${r.n}" min="1" max="10" step="0.5" inputmode="decimal" value="${f[i] || 1}"></div>`).join('')}</div>
+  <label class="chk sect" for="fJoker"><input type="checkbox" id="fJoker"${c.joker ? ' checked' : ''}> Joker: per ronde één partij dubbele punten</label>
+  <p class="note" style="margin:0">De joker kies je vóór de eerste partij van die ronde. Niets ingevuld = 0 punten.</p></div>
+  <div class="card sect"><h3>Spelregels</h3><div class="form">
+    <div><label for="fShow">Voorspellingen van anderen zien</label><select id="fShow"><option value="start"${c.showOthers !== 'always' ? ' selected' : ''}>Pas als de partij begint</option><option value="always"${c.showOthers === 'always' ? ' selected' : ''}>Altijd</option></select></div>
+    <div><label for="fTie">Bij gelijke stand</label><select id="fTie"><option value="exact"${c.tiebreak !== 'share' ? ' selected' : ''}>Meeste exacte setstanden wint</option><option value="share"${c.tiebreak === 'share' ? ' selected' : ''}>Prijzengeld delen</option></select></div>
+  </div></div>`;
+}
+function readCfg(base) {
+  const n = (id, d) => { const v = parseFloat($(id).value); return Number.isFinite(v) ? v : d; };
+  const c = Object.assign({}, base);
+  c.name = $('fName').value.trim() || 'WK Darts Poule';
+  c.inleg = Math.max(0, n('fInleg', 0));
+  c.prizes = [n('fP1', 0), n('fP2', 0), n('fP3', 0)];
+  c.pts = { win: n('fWin', 2), exact: n('fExact', 3) };
+  c.factors = Poule.ROUNDS.map(r => Math.max(1, n('fF' + r.n, 1)));
+  c.joker = $('fJoker').checked;
+  c.showOthers = $('fShow').value;
+  c.tiebreak = $('fTie').value;
+  return c;
+}
+const prizeOk = c => c.prizes.reduce((a, b) => a + b, 0) === 100;
+
+/* ------------------------------------------------------------------ nieuwe poule */
+function viewNew() {
+  $('hName').textContent = 'Nieuwe poule';
+  $('hSub').textContent = 'WK darts · 11 dec 2026 – 3 jan 2027';
+  const c = Poule.defaultCfg();
+  $('main').innerHTML = `<h2>Poule aanmaken</h2>
+    <p class="lead">Alles is later nog aan te passen bij Beheer. De standaardkeuzes komen van je maat: alle rondes, winnaar met bonus voor de setstand, per ronde invullen, hogere punten in latere rondes en een joker.</p>
+    ${cfgForm(c, true)}
+    <div class="card sect"><h3>Bonusvragen</h3><div class="form">
+      <div><label for="fB1">Wereldkampioen (punten)</label><input type="number" id="fB1" min="0" max="100" inputmode="numeric" value="15"></div>
+      <div><label for="fB2">Meeste 180's van het toernooi (punten)</label><input type="number" id="fB2" min="0" max="100" inputmode="numeric" value="10"></div>
+    </div><p class="note">Meer vragen? Die zet je er later in via Excel bij Beheer.</p></div>
+    <p class="warn" id="fErr" hidden></p>
+    <div class="btns"><button class="primary" id="fGo">Poule aanmaken</button></div>`;
+  $('fGo').addEventListener('click', async () => {
+    const me = $('fMe').value.trim(), cfg = readCfg(c);
+    if (!me) { $('fErr').hidden = false; $('fErr').textContent = 'Vul je naam in.'; return; }
+    if (!prizeOk(cfg)) { $('fErr').hidden = false; $('fErr').textContent = 'De prijspercentages moeten samen 100% zijn.'; return; }
+    $('fGo').disabled = true; $('fGo').textContent = 'Bezig…';
+    try {
+      const code = await Poule.create(cfg, me);
+      const { P: p, M: m } = await Poule.load(code);
+      const qs = m.questions.map(q => Object.assign({}, q, { max: q.id === 'kampioen' ? Math.max(0, +$('fB1').value || 0) : Math.max(0, +$('fB2').value || 0) }));
+      await Poule.put(p, 'vrg/main', { list: qs });
+      location.replace('darts.html?p=' + code + '#beheer');
+    } catch (e) { fail(e); $('fGo').disabled = false; $('fGo').textContent = 'Poule aanmaken'; }
+  });
+}
+
+/* ------------------------------------------------------------------ meedoen */
+async function viewJoin(code) {
+  $('hName').textContent = 'Meedoen';
+  $('main').innerHTML = '<p class="note">Poule zoeken…</p>';
+  let m;
+  try { ({ M: m } = await Poule.load(code)); } catch (e) { $('main').innerHTML = `<p class="warn">Ophalen lukte niet. Heb je internet?</p>`; return; }
+  if (!m.cfg) { $('main').innerHTML = `<h2>Geen poule gevonden</h2><p class="lead">Er is geen poule met code ${esc(code)}. Controleer de code.</p><p><a href="index.html">Terug</a></p>`; return; }
+  const id = await Poule.me();
+  if (m.cfg.members[id.pid]) { location.replace('darts.html?p=' + code); return; }
+  $('hName').textContent = m.cfg.name;
+  $('main').innerHTML = `<div class="card" style="max-width:520px"><h2>Doe mee met ${esc(m.cfg.name)}</h2>
+    <p class="lead">Beheerder: ${esc(m.cfg.members[m.cfg.admin.pid] ? m.cfg.members[m.cfg.admin.pid].name : '')} · inleg ${eur(m.cfg.inleg)} p.p.</p>
+    <label for="jName">Jouw naam</label><input type="text" id="jName" maxlength="30" placeholder="Zoals je vrienden je kennen">
+    <div class="btns"><button class="primary" id="jGo">Meedoen</button></div>
+    <p class="note">De beheerder laat je daarna toe.</p></div>`;
+  $('jGo').addEventListener('click', async () => {
+    const name = $('jName').value.trim();
+    if (!name) { toast('Vul je naam in.'); return; }
+    $('jGo').disabled = true;
+    try { await Poule.join(code, name); location.replace('darts.html?p=' + code); }
+    catch (e) { fail(e); $('jGo').disabled = false; }
+  });
+}
+
+/* ------------------------------------------------------------------ poule bekijken */
+const TABS = [['voorspel', 'Voorspellen'], ['stand', 'Stand'], ['bonus', 'Bonus'], ['beheer', 'Beheer'], ['ik', 'Ik']];
+const isAdmin = () => M && M.cfg && ME && M.cfg.admin.pid === ME.pid;
+const isMember = () => M && M.cfg && ME && !!M.cfg.members[ME.pid];
+const now = () => Date.now();
+const rounds = () => Object.values(M.rounds).sort((a, b) => a.n - b.n);
+const tab = () => { const t = location.hash.slice(1); return TABS.some(x => x[0] === t) && (t !== 'beheer' || isAdmin()) ? t : 'voorspel'; };
+
+async function refresh(quiet) {
+  if (busy) return;
+  busy = true;
+  try {
+    const r = await Poule.load(P.code);
+    P = r.P; M = r.M;
+    render();
+  } catch (e) { if (!quiet) fail(e); }
+  finally { busy = false; }
+}
+
+function render() {
+  if (M.adminChanged) {
+    $('main').innerHTML = '<h2>Let op</h2><p class="lead warn">De instellingen van deze poule zijn niet meer ondertekend door de beheerder die je kent. Neem contact op met de beheerder.</p>';
+    return;
+  }
+  if (!M.cfg) { $('main').innerHTML = '<h2>Poule niet gevonden</h2><p class="lead">Deze poule bestaat (nog) niet.</p>'; return; }
+  const c = M.cfg;
+  $('hName').textContent = c.name;
+  document.title = c.name;
+  const st = Poule.standings(M);
+  const nMem = Object.keys(c.members).length;
+  $('hSub').textContent = `${nMem} ${nMem === 1 ? 'deelnemer' : 'deelnemers'} · inleg ${eur(c.inleg)} p.p. · code ${P.code}`;
+  if (!isMember()) {
+    $('nav').hidden = true; $('kpis').hidden = true;
+    const req = M.requests.some(r => r.pid === ME.pid);
+    $('main').innerHTML = `<div class="card" style="max-width:560px"><h2>${req ? 'Wachten op toelating' : 'Je doet nog niet mee'}</h2>
+      <p class="lead">${req ? 'Je aanmelding is binnen. ' + esc(c.members[c.admin.pid].name) + ' laat je toe; daarna kun je voorspellen.' : 'Meld je aan om mee te doen.'}</p>
+      <div class="btns">${req ? '<button id="again">Opnieuw kijken</button>' : `<a href="darts.html?join=${P.code}"><button class="primary">Aanmelden</button></a>`}</div></div>`;
+    if ($('again')) $('again').addEventListener('click', () => refresh());
+    return;
+  }
+  const mine = st.rows.find(r => r.pid === ME.pid);
+  $('kpis').hidden = false;
+  $('kRank').textContent = '#' + mine.pos;
+  $('kPts').textContent = nl(mine.t);
+  $('kPot').textContent = eur(st.pot);
+  $('nav').hidden = false;
+  const t = tab();
+  $('tabs').innerHTML = TABS.filter(x => x[0] !== 'beheer' || isAdmin()).map(([k, l]) => {
+    const dot = k === 'beheer' && M.requests.length ? `<span class="dot">${M.requests.length}</span>` : '';
+    return `<a href="#${k}"${k === t ? ' aria-current="page"' : ''}>${l}${dot}</a>`;
+  }).join('');
+  ({ voorspel: vPredict, stand: vStand, bonus: vBonus, beheer: vAdmin, ik: vMe })[t](st);
+}
+
+/* --- voorspellen */
+function lastName(n) { const w = String(n).split(' '), i = w.findIndex((x, j) => j > 0 && /^(van|de|den|der)$/i.test(x)); const s = i > 0 ? w.slice(i).join(' ') : w[w.length - 1]; return s.charAt(0).toUpperCase() + s.slice(1); }
+function vPredict() {
+  const rs = rounds().filter(r => (r.matches || []).length);
+  if (!rs.length) {
+    $('main').innerHTML = `<h2>Partijen</h2><div class="empty">Nog geen partijen. ${isAdmin() ? 'Zet ze erin bij <a href="#beheer">Beheer</a> zodra de loting bekend is.' : 'De beheerder zet ze erin zodra de loting bekend is.'}</div>`;
+    return;
+  }
+  const c = M.cfg, T = now();
+  // eerst de ronde die nu loopt of als eerste komt
+  const open = rs.find(r => r.matches.some(m => !m.res)) || rs[rs.length - 1];
+  const order = [open, ...rs.filter(r => r !== open)];
+  $('main').innerHTML = order.map(rd => {
+    const jm = Poule.jokerOf(M, ME.pid, rd), rStart = Poule.roundStart(rd), jOpen = c.joker && T < rStart;
+    const myJ = ((M.jokers[ME.pid] || {})[String(rd.n)] || {}).m;
+    const ms = rd.matches.slice().sort((a, b) => a.start - b.start);
+    return `<div class="rhead"><h2>${esc(rd.name)}</h2><span class="note">best of ${rd.bo} sets · punten ×${nl(Poule.factorOf(c, rd.n))}${c.joker ? (jOpen ? ' · joker kiezen tot ' + Poule.fmtTime(rStart) : ' · joker staat vast') : ''}</span></div>
+      <div class="grid">${ms.map(m => matchCard(rd, m, T, jOpen ? myJ : jm, jOpen)).join('')}</div>`;
+  }).join('') + '<p class="note sect">Tijden in Nederlandse tijd. Een voorspelling telt als hij vóór de start van de partij is opgeslagen.</p>';
+}
+function matchCard(rd, m, T, joker, jOpen) {
+  const pred = (M.preds[ME.pid] || {})[m.id], started = T >= m.start, c = M.cfg;
+  const p = pred && pred.t < m.start ? pred.s : (pred && !started ? pred.s : null);
+  let body;
+  if (!started) {
+    const o = Poule.scoreOptions(rd.bo), n = (rd.bo + 1) / 2;
+    const chip = x => `<button data-m="${m.id}" data-r="${rd.n}" data-s="${x.join('-')}" aria-pressed="${!!p && p[0] === x[0] && p[1] === x[1]}">${x.join('-')}</button>`;
+    body = `<div class="pl"><span class="nm">${esc(m.a)}</span></div><div class="pl"><span class="nm">${esc(m.b)}</span></div>
+      <div class="chips"><div class="g"><span>${esc(lastName(m.a))} wint</span><div class="row">${o.filter(x => x[0] === n).map(chip).join('')}</div></div>
+      <div class="g"><span>${esc(lastName(m.b))} wint</span><div class="row">${o.filter(x => x[1] === n).map(chip).join('')}</div></div></div>
+      <div class="foot"><span>${p ? 'Opgeslagen: ' + p.join('-') : 'Nog invullen'}</span>
+      ${c.joker ? `<button class="jk" data-j="${m.id}" data-r="${rd.n}" aria-pressed="${joker === m.id}"${jOpen ? '' : ' disabled'}>★ Joker</button>` : ''}
+      <span>Sluit ${Poule.fmtTime(m.start)}</span></div>`;
+  } else {
+    const r = Poule.matchPoints(c, rd, m, pred, joker === m.id);
+    const w = m.res ? Math.sign(m.res[0] - m.res[1]) : 0;
+    body = `<div class="pl${w > 0 ? ' win' : ''}"><span class="nm">${esc(m.a)}</span><span class="s">${m.res ? m.res[0] : '–'}</span></div>
+      <div class="pl${w < 0 ? ' win' : ''}"><span class="nm">${esc(m.b)}</span><span class="s">${m.res ? m.res[1] : '–'}</span></div>
+      <div class="foot"><span>Jij: ${p ? p.join('-') : 'niets ingevuld'}${joker === m.id ? ' ★' : ''}</span>
+      ${m.res ? `<span class="pts ${r.exact ? 'hit' : r.win ? 'part' : 'miss'}">+${nl(r.pts)} pnt</span>` : '<span>Bezig of nog geen uitslag</span>'}</div>`;
+  }
+  const showOthers = c.showOthers === 'always' || started;
+  const others = showOthers ? Object.keys(c.members).filter(pid => pid !== ME.pid).map(pid => {
+    const pr = (M.preds[pid] || {})[m.id];
+    const s = pr && pr.t < m.start ? pr.s : (!started && pr ? pr.s : null);
+    const ok = m.res && s && Math.sign(s[0] - s[1]) === Math.sign(m.res[0] - m.res[1]);
+    return `<span class="${ok ? 'ok' : ''}">${esc(c.members[pid].name)} ${s ? s.join('-') : '–'}</span>`;
+  }).join('') : '';
+  return `<article class="card"><div class="meta"><span>${esc(rd.name)}</span><span>${Poule.fmtTime(m.start)}</span></div>${body}${others ? `<div class="others">${others}</div>` : ''}</article>`;
+}
+
+/* --- stand */
+function vStand(st) {
+  const c = M.cfg, max = Math.max(...st.rows.map(r => r.t), 1);
+  const nb = M.questions.reduce((s, q) => s + (q.max || 0), 0);
+  $('main').innerHTML = `<div class="cols"><div><h2>Stand</h2><p class="lead">P = partijen, B = bonusvragen. ${c.tiebreak === 'exact' ? 'Bij gelijke punten wint wie de meeste exacte setstanden heeft.' : 'Bij gelijke punten wordt het prijzengeld gedeeld.'}</p>
+    ${st.rows.map(r => `<div class="rowl${r.pid === ME.pid ? ' me' : ''}"><span class="pos">${r.pos}</span><div><span class="nm">${esc(r.name)}${r.pid === ME.pid ? ' (jij)' : ''}</span><small>P ${nl(r.w)} · B ${r.b} · ${r.exact}× exact</small><div class="bar" style="width:${r.t / max * 100}%"></div></div><span class="val">${nl(r.t)}${r.prize ? `<small><br>${eur(r.prize)}</small>` : ''}</span></div>`).join('')}
+    </div><div><div class="card"><h3>Prijzenpot</h3><p class="note" style="margin-top:0">${st.rows.length} deelnemers × ${eur(c.inleg)} = ${eur(st.pot)}</p>
+    <table><tbody>${c.prizes.map((p, i) => `<tr><td>${i + 1}e plaats</td><td class="r">${p}%</td><td class="r">${eur(st.pot * p / 100)}</td></tr>`).join('')}</tbody></table></div>
+    <div class="card" style="margin-top:12px"><h3>Puntentelling</h3><table><tbody>
+      <tr><td>Goede winnaar</td><td class="r">${c.pts.win}</td></tr>
+      <tr><td>Extra voor exacte setstand</td><td class="r">+${c.pts.exact}</td></tr>
+      ${c.joker ? '<tr><td>Joker (1 per ronde)</td><td class="r">×2</td></tr>' : ''}
+      <tr><td>Bonusvragen samen</td><td class="r">${nb}</td></tr></tbody></table>
+      <table class="sect"><thead><tr><th>Ronde</th><th class="r">Sets</th><th class="r">Factor</th></tr></thead><tbody>
+      ${Poule.ROUNDS.map(r => `<tr><td>${r.name}</td><td class="r">bo${r.bo}</td><td class="r">×${nl(Poule.factorOf(c, r.n))}</td></tr>`).join('')}</tbody></table></div></div></div>`;
+}
+
+/* --- bonus */
+function vBonus() {
+  const qs = M.questions, c = M.cfg, T = now();
+  if (!qs.length) { $('main').innerHTML = '<h2>Bonusvragen</h2><div class="empty">Nog geen bonusvragen.</div>'; return; }
+  $('main').innerHTML = `<h2>Bonusvragen</h2><p class="lead">Antwoorden kun je wijzigen tot de vraag sluit. Daarna zie je wat iedereen heeft ingevuld.</p><div class="grid">${qs.map(q => {
+    const a = (M.bonus[ME.pid] || {})[q.id], val = a ? a.a : '', closed = T >= q.close, done = q.out !== '' && q.out != null;
+    const dis = closed ? ' disabled' : '';
+    let ctl;
+    if (q.type === 'Ja/Nee') ctl = `<div class="yn">${['Ja', 'Nee'].map(v => `<button data-q="${q.id}" data-v="${v}" aria-pressed="${val === v}"${dis}>${v}</button>`).join('')}</div>`;
+    else if (q.type === 'Meerkeuze') ctl = `<select data-q="${q.id}" id="q-${q.id}" aria-label="Antwoord"${dis}><option value="">Kies…</option>${q.opts.map(o => `<option${o === val ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
+    else ctl = `<input data-q="${q.id}" id="q-${q.id}" type="${q.type === 'Getal' ? 'number' : 'text'}"${q.type === 'Getal' ? ' inputmode="decimal" step="any"' : ''} value="${esc(val)}" placeholder="${q.type === 'Getal' ? 'Jouw getal' : 'Jouw antwoord'}" aria-label="Antwoord"${dis}>`;
+    const p = Poule.bonusPoints(M, q, ME.pid);
+    const chip = done ? `<span class="pts ${p ? 'hit' : 'miss'}">+${p} pnt</span>` : `<span class="pts max">${q.max} pnt</span>`;
+    const all = closed || c.showOthers === 'always' ? Object.keys(c.members).filter(pid => pid !== ME.pid).map(pid => {
+      const x = (M.bonus[pid] || {})[q.id]; const v = x && x.t < q.close ? x.a : '';
+      return `<span>${esc(c.members[pid].name)}: ${esc(v === '' ? '–' : nl(v))}</span>`;
+    }).join('') : '';
+    return `<article class="card q"><div class="meta"><span>${q.rule === 'Dichtstbij' ? 'dichtstbij wint' : esc(q.type)}</span>${chip}</div>
+      <h3>${esc(q.q)}</h3>${ctl}${done ? `<p class="okm">Uitkomst: ${esc(nl(q.out))}</p>` : ''}
+      ${all ? `<div class="others">${all}</div>` : ''}
+      <div class="foot"><span>${esc(q.note || '')}</span><span>${closed ? 'Gesloten' : 'Sluit ' + Poule.fmtTime(q.close)}</span></div></article>`;
+  }).join('')}</div>`;
+}
+
+/* --- beheer */
+function vAdmin() {
+  const c = M.cfg, link = WEB_BASE + 'darts.html?join=' + P.code;
+  const wa = 'https://wa.me/?text=' + encodeURIComponent(`Doe mee met onze poule "${c.name}"! Open ${link} of vul in de Poule-app de code ${P.code} in.`);
+  const rs = rounds();
+  $('main').innerHTML = `
+  <div class="cols"><div>
+    <div class="card"><h3>Vrienden uitnodigen</h3><p class="note" style="margin-top:0">Code</p><p class="code" style="margin:0 0 8px">${P.code}</p>
+      <p class="note" style="word-break:break-all">${esc(link)}</p>
+      <div class="btns"><a href="${esc(wa)}" target="_blank" rel="noopener"><button class="ok">Delen via WhatsApp</button></a><button id="cp">Link kopiëren</button></div></div>
+    <div class="card sect"><h3>Aanmeldingen</h3>${M.requests.length ? `<div class="list">${M.requests.map(r => `<div class="it"><span>${esc(r.name)}<small>wil meedoen</small></span><span class="btns"><button class="ok" data-acc="${r.pid}">Toelaten</button><button data-rej="${r.pid}">Weigeren</button></span></div>`).join('')}</div>` : '<p class="note">Geen nieuwe aanmeldingen.</p>'}
+      <h3 class="sect">Deelnemers (${Object.keys(c.members).length})</h3><div class="list">${Object.entries(c.members).map(([pid, m]) => `<div class="it"><span>${esc(m.name)}${pid === c.admin.pid ? '<small>beheerder</small>' : ''}</span>${pid === c.admin.pid ? '' : `<span class="btns"><button data-del="${pid}">Verwijderen</button></span>`}</div>`).join('')}</div></div>
+  </div><div>
+    <div class="card"><h3>Partijen en bonusvragen importeren</h3>
+      <p class="note" style="margin-top:0">Gebruik het Excel-template: tabblad "Partijen" (ronde, datum, tijd in NL-tijd, spelers, eventueel uitslag) en/of "Vragen". Opnieuw uploaden werkt partijen bij; voorspellingen blijven staan.</p>
+      <div class="drop"><label for="file">Kies Excel-bestand</label><input type="file" id="file" accept=".xlsx,.xls"></div><div class="report" id="report"></div></div>
+    <div class="card sect"><h3>Partij toevoegen</h3><div class="form">
+      <div><label for="aR">Ronde</label><select id="aR">${Poule.ROUNDS.map(r => `<option value="${r.n}">${r.name}</option>`).join('')}</select></div>
+      <div><label for="aD">Datum</label><input type="date" id="aD" value="2026-12-11"></div>
+      <div><label for="aT">Tijd (NL)</label><input type="time" id="aT" value="20:00"></div>
+      <div class="wide"><label for="aA">Speler 1</label><input type="text" id="aA" maxlength="40"></div>
+      <div class="wide"><label for="aB">Speler 2</label><input type="text" id="aB" maxlength="40"></div>
+    </div><div class="btns"><button class="primary" id="aGo">Toevoegen</button></div></div>
+  </div></div>
+  <div class="sect"><h2>Uitslagen</h2><p class="lead">Kies de setstand zodra een partij klaar is; de stand rekent meteen mee.</p>
+    ${rs.filter(r => (r.matches || []).length).map(rd => `<div class="card" style="margin-bottom:12px"><h3>${esc(rd.name)} <span class="note">best of ${rd.bo}</span></h3>
+      ${rd.matches.slice().sort((a, b) => a.start - b.start).map(m => `<div class="res"><span>${esc(m.a)} – ${esc(m.b)}<small>${Poule.fmtTime(m.start)}</small></span>
+        <select data-res="${m.id}" data-r="${rd.n}" aria-label="Uitslag"><option value="">Nog geen uitslag</option>${Poule.scoreOptions(rd.bo).map(x => `<option value="${x.join('-')}"${m.res && m.res[0] === x[0] && m.res[1] === x[1] ? ' selected' : ''}>${x.join('-')}</option>`).join('')}</select>
+        <button data-rm="${m.id}" data-r="${rd.n}" aria-label="Partij verwijderen">✕</button></div>`).join('')}</div>`).join('') || '<div class="empty">Nog geen partijen.</div>'}
+  </div>
+  <div class="sect"><h2>Uitkomsten bonusvragen</h2><div class="card">${M.questions.map(q => `<div class="res"><span>${esc(q.q)}<small>${q.max} pnt · sluit ${Poule.fmtTime(q.close)}</small></span>
+      ${q.type === 'Ja/Nee' || q.type === 'Meerkeuze' ? `<select data-out="${q.id}" aria-label="Uitkomst"><option value="">Nog open</option>${(q.type === 'Ja/Nee' ? ['Ja', 'Nee'] : q.opts).map(o => `<option${o === q.out ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select>`
+      : `<input type="${q.type === 'Getal' ? 'number' : 'text'}" data-out="${q.id}" value="${esc(q.out)}" placeholder="Nog open" aria-label="Uitkomst"${q.type === 'Getal' ? ' step="any" inputmode="decimal"' : ''}>`}<span></span></div>`).join('') || '<p class="note">Geen bonusvragen.</p>'}</div></div>
+  <div class="sect"><h2>Instellingen</h2>${cfgForm(c, false)}<div class="btns"><button class="primary" id="sGo">Instellingen opslaan</button></div></div>`;
+
+  $('cp').addEventListener('click', async () => { try { await navigator.clipboard.writeText(link); toast('Link gekopieerd'); } catch (e) { toast('Kopiëren lukte niet; houd de link ingedrukt.'); } });
+  $('main').querySelectorAll('[data-acc]').forEach(b => b.addEventListener('click', () => act(async () => {
+    const r = M.requests.find(x => x.pid === b.dataset.acc);
+    const cfg = Object.assign({}, M.cfg, { members: Object.assign({}, M.cfg.members, { [r.pid]: { name: r.name, pub: r.pub } }) });
+    await Poule.put(P, 'cfg/main', cfg); toast(r.name + ' doet mee');
+  })));
+  $('main').querySelectorAll('[data-rej]').forEach(b => b.addEventListener('click', () => act(async () => { await Poule.del(P, 'spe/' + b.dataset.rej); toast('Aanmelding geweigerd'); })));
+  $('main').querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Zeker?'; return; }
+    act(async () => { const mem = Object.assign({}, M.cfg.members); delete mem[b.dataset.del]; await Poule.put(P, 'cfg/main', Object.assign({}, M.cfg, { members: mem })); await Poule.del(P, 'spe/' + b.dataset.del).catch(() => {}); toast('Verwijderd'); });
+  }));
+  $('aGo').addEventListener('click', () => {
+    const n = +$('aR').value, a = $('aA').value.trim(), b = $('aB').value.trim(), d = $('aD').value, t = $('aT').value;
+    if (!a || !b || !d || !t) { toast('Vul beide spelers, datum en tijd in.'); return; }
+    const [y, mo, da] = d.split('-').map(Number), [h, mi] = t.split(':').map(Number);
+    act(async () => { const res = await addMatches([{ n, a, b, start: Poule.amsToEpoch(y, mo, da, h, mi), res: null }]); toast(res.added ? 'Partij toegevoegd' : 'Partij bijgewerkt'); $('aA').value = ''; $('aB').value = ''; });
+  });
+  $('main').querySelectorAll('[data-res]').forEach(s => s.addEventListener('change', () => act(async () => {
+    const rd = JSON.parse(JSON.stringify(M.rounds[s.dataset.r])), m = rd.matches.find(x => x.id === s.dataset.res);
+    m.res = s.value ? s.value.split('-').map(Number) : null;
+    await Poule.put(P, 'rnd/' + rd.n, rd); toast(m.res ? 'Uitslag opgeslagen' : 'Uitslag gewist');
+  })));
+  $('main').querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Zeker?'; return; }
+    act(async () => { const rd = JSON.parse(JSON.stringify(M.rounds[b.dataset.r])); rd.matches = rd.matches.filter(x => x.id !== b.dataset.rm); await Poule.put(P, 'rnd/' + rd.n, rd); toast('Partij verwijderd'); });
+  }));
+  $('main').querySelectorAll('[data-out]').forEach(i => i.addEventListener('change', () => act(async () => {
+    const list = M.questions.map(q => (q.id === i.dataset.out ? Object.assign({}, q, { out: String(i.value).trim() }) : q));
+    await Poule.put(P, 'vrg/main', { list }); toast('Uitkomst opgeslagen');
+  })));
+  $('sGo').addEventListener('click', () => {
+    const cfg = readCfg(M.cfg);
+    if (!prizeOk(cfg)) { toast('De prijspercentages moeten samen 100% zijn.'); return; }
+    act(async () => { await Poule.put(P, 'cfg/main', cfg); toast('Instellingen opgeslagen'); });
+  });
+  $('file').addEventListener('change', importExcel);
+}
+
+async function act(fn) {
+  try { await fn(); await refresh(true); } catch (e) { fail(e); }
+}
+
+async function addMatches(list) {
+  const touched = {};
+  let added = 0, updated = 0;
+  for (const x of list) {
+    const def = Poule.ROUNDS.find(r => r.n === x.n);
+    const rd = touched[x.n] || JSON.parse(JSON.stringify(M.rounds[x.n] || { n: x.n, name: def.name, bo: def.bo, matches: [] }));
+    touched[x.n] = rd;
+    const id = await Poule.matchId(x.n, x.a, x.b);
+    const ex = rd.matches.find(m => m.id === id);
+    if (ex) { ex.start = x.start; if (x.res) ex.res = x.res; updated++; }
+    else { rd.matches.push({ id, a: x.a, b: x.b, start: x.start, res: x.res || null }); added++; }
+  }
+  for (const rd of Object.values(touched)) await Poule.put(P, 'rnd/' + rd.n, rd);
+  return { added, updated };
+}
+
+/* Excel: tabblad Partijen en/of Vragen */
+const p2 = n => String(n).padStart(2, '0');
+function cellDate(v) {
+  if (v instanceof Date && !isNaN(v)) return [v.getFullYear(), v.getMonth() + 1, v.getDate()];
+  if (typeof v === 'number' && window.XLSX) { const d = XLSX.SSF.parse_date_code(v); return [d.y, d.m, d.d]; }
+  const m = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/.exec(String(v || '').trim()) || null;
+  if (m) return [+m[3], +m[2], +m[1]];
+  const i = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(String(v || '').trim());
+  return i ? [+i[1], +i[2], +i[3]] : null;
+}
+function cellTime(v) {
+  if (v instanceof Date && !isNaN(v)) return [v.getHours(), v.getMinutes()];
+  if (typeof v === 'number') { const mins = Math.round((v % 1) * 1440); return [Math.floor(mins / 60), mins % 60]; }
+  const m = /(\d{1,2})[:.](\d{2})/.exec(String(v || ''));
+  return m ? [+m[1], +m[2]] : null;
+}
+function roundOf(v) {
+  const s = Poule.norm(v);
+  const byNum = Poule.ROUNDS.find(r => String(r.n) === s || Poule.norm(r.name) === s);
+  if (byNum) return byNum.n;
+  const m = /(\d)/.exec(s);
+  if (/kwart/.test(s)) return 5;
+  if (/halve/.test(s)) return 6;
+  if (/achtste/.test(s)) return 4;
+  if (/^finale/.test(s)) return 7;
+  return m ? +m[1] : 0;
+}
+function sheetRows(wb, want) {
+  const name = wb.SheetNames.find(n => Poule.norm(n) === want);
+  return name ? XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true, defval: '' }) : null;
+}
+const colIdx = (head, ...keys) => head.findIndex(h => keys.some(k => h.startsWith(k)));
+async function importExcel(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const rep = $('report');
+  if (!window.XLSX) { rep.innerHTML = '<p class="warn">De Excel-lezer kon niet laden.</p>'; return; }
+  try {
+    const buf = f.arrayBuffer ? await f.arrayBuffer() : await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsArrayBuffer(f); });
+    const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+    const msgs = [], errs = [];
+    const pr = sheetRows(wb, 'partijen');
+    if (pr && pr.length > 1) {
+      const h = pr[0].map(x => Poule.norm(x));
+      const ix = { r: colIdx(h, 'ronde'), d: colIdx(h, 'datum'), t: colIdx(h, 'tijd'), a: colIdx(h, 'speler 1', 'speler1', 'thuis'), b: colIdx(h, 'speler 2', 'speler2', 'uit '), u: colIdx(h, 'uitslag') };
+      const list = [];
+      pr.slice(1).forEach((row, i) => {
+        const g = k => (ix[k] < 0 ? '' : row[ix[k]]);
+        const a = String(g('a')).trim(), b = String(g('b')).trim();
+        if (!a && !b) return;
+        const n = roundOf(g('r')), d = cellDate(g('d')), t = cellTime(g('t')), def = Poule.ROUNDS.find(x => x.n === n);
+        const er = [];
+        if (!def) er.push('onbekende ronde');
+        if (!a || !b) er.push('twee spelers nodig');
+        if (!d) er.push('datum ontbreekt');
+        if (!t) er.push('tijd ontbreekt');
+        let res = null;
+        if (def && String(g('u')).trim()) { res = Poule.parseScore(g('u'), def.bo); if (!res) er.push('uitslag klopt niet bij best of ' + def.bo); }
+        if (er.length) { errs.push(`Partijen rij ${i + 2}: ${er.join(', ')}`); return; }
+        list.push({ n, a, b, start: Poule.amsToEpoch(d[0], d[1], d[2], t[0], t[1]), res });
+      });
+      if (list.length) { const r = await addMatches(list); msgs.push(`${r.added} partijen toegevoegd, ${r.updated} bijgewerkt`); }
+    }
+    const vr = sheetRows(wb, 'vragen');
+    if (vr && vr.length > 1) {
+      const h = vr[0].map(x => Poule.norm(x));
+      const ix = { id: colIdx(h, 'id'), q: colIdx(h, 'vraag'), type: colIdx(h, 'type'), opts: colIdx(h, 'opties'), max: colIdx(h, 'max'), rule: colIdx(h, 'puntenregel'), close: colIdx(h, 'sluit'), out: colIdx(h, 'uitkomst'), note: colIdx(h, 'toelichting') };
+      const qs = [], seen = new Set(), first = Math.min(...rounds().map(Poule.roundStart), Poule.amsToEpoch(2026, 12, 11, 20, 0));
+      vr.slice(1).forEach((row, i) => {
+        const g = k => (ix[k] < 0 ? '' : row[ix[k]]);
+        const text = String(g('q')).trim(); if (!text) return;
+        const q = { id: String(g('id')).trim(), q: text, type: String(g('type')).trim() || 'Tekst', opts: String(g('opts')).split(';').map(s => s.trim()).filter(Boolean),
+          max: Number(g('max')), rule: String(g('rule')).trim() || 'Vast', close: first, out: String(g('out')).trim(), note: String(g('note')).trim() };
+        const d = cellDate(g('close')), t = cellTime(g('close'));
+        if (d) q.close = Poule.amsToEpoch(d[0], d[1], d[2], t ? t[0] : 0, t ? t[1] : 0);
+        const er = [];
+        if (!/^[A-Za-z0-9_-]{1,20}$/.test(q.id)) er.push('ID mag alleen letters, cijfers, - en _ bevatten');
+        else if (seen.has(q.id)) er.push('ID komt dubbel voor');
+        if (!['Ja/Nee', 'Meerkeuze', 'Getal', 'Tekst'].includes(q.type)) er.push('onbekend type');
+        if (q.type === 'Meerkeuze' && q.opts.length < 2) er.push('minstens 2 opties');
+        if (!(q.max > 0)) er.push('max punten ontbreekt');
+        if (q.rule === 'Dichtstbij' && q.type !== 'Getal') er.push('dichtstbij kan alleen bij Getal');
+        if (q.type === 'Ja/Nee' && q.out) q.out = Poule.norm(q.out) === 'ja' ? 'Ja' : 'Nee';
+        if (er.length) errs.push(`Vragen rij ${i + 2}: ${er.join(', ')}`); else { seen.add(q.id); qs.push(q); }
+      });
+      if (qs.length) { await Poule.put(P, 'vrg/main', { list: qs }); msgs.push(`${qs.length} bonusvragen geladen`); }
+    }
+    if (!msgs.length && !errs.length) errs.push('Geen tabblad "Partijen" of "Vragen" met inhoud gevonden.');
+    rep.innerHTML = (msgs.length ? `<p class="okm">${esc(msgs.join(' · '))}.</p>` : '') + (errs.length ? `<p class="warn">${errs.length} rij(en) overgeslagen:</p><ul>${errs.slice(0, 20).map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '');
+    await refresh(true);
+    if ($('report')) $('report').innerHTML = rep.innerHTML;
+  } catch (err) { rep.innerHTML = `<p class="warn">Dit bestand kon ik niet lezen (${esc(err.message)}).</p>`; }
+  e.target.value = '';
+}
+
+/* --- ik */
+async function vMe() {
+  const c = M.cfg;
+  $('main').innerHTML = `<div class="card" style="max-width:640px"><h2>${esc(c.members[ME.pid].name)}</h2>
+    <p class="lead">Je account staat op dit toestel. Wil je ook op een ander toestel meedoen (of krijg je een nieuwe telefoon)? Gebruik daar je inlogcode bij "Inloggen met code" op het startscherm.</p>
+    <label for="lc">Jouw inlogcode</label><textarea id="lc" readonly></textarea>
+    <div class="btns"><button id="lcCp">Kopiëren</button></div>
+    <p class="note">Deel deze code met niemand: wie hem heeft, kan namens jou voorspellen.</p></div>
+    <div class="card sect" style="max-width:640px"><h3>Deze poule op dit toestel</h3><p class="note" style="margin-top:0">Haalt de poule alleen uit je lijst op dit toestel. Je blijft deelnemer.</p>
+    <div class="btns"><button id="leave">Uit mijn lijst halen</button></div></div>`;
+  $('lc').value = await Poule.loginCode();
+  $('lcCp').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('lc').value); toast('Inlogcode gekopieerd'); } catch (e) { $('lc').select(); toast('Houd de tekst ingedrukt om te kopiëren.'); } });
+  $('leave').addEventListener('click', () => { Poule.forget(P.code); location.href = 'index.html'; });
+}
+
+/* ------------------------------------------------------------------ voorspellen en antwoorden opslaan */
+$('main').addEventListener('click', e => {
+  const b = e.target.closest('button[data-s]');
+  if (b && isMember()) {
+    const mid = b.dataset.m, s = b.dataset.s.split('-').map(Number);
+    const rd = M.rounds[b.dataset.r], m = rd && rd.matches.find(x => x.id === mid);
+    if (!m || now() >= m.start) { toast('Deze partij is al begonnen.'); return; }
+    (M.preds[ME.pid] = M.preds[ME.pid] || {})[mid] = { s, t: now() - 1 };
+    render();
+    Poule.put(P, 'vsp/' + ME.pid + '-' + mid, { s }).then(t => { if (t >= m.start) toast('Te laat: de partij was al begonnen.'); refresh(true); }, fail);
+    return;
+  }
+  const j = e.target.closest('button[data-j]');
+  if (j && isMember()) {
+    const n = j.dataset.r, rd = M.rounds[n];
+    if (now() >= Poule.roundStart(rd)) { toast('De joker staat al vast voor deze ronde.'); return; }
+    const cur = ((M.jokers[ME.pid] || {})[n] || {}).m;
+    const m = cur === j.dataset.j ? '' : j.dataset.j;
+    (M.jokers[ME.pid] = M.jokers[ME.pid] || {})[n] = { m, t: now() - 1 };
+    render();
+    Poule.put(P, 'jok/' + ME.pid + '-' + n, { m }).then(() => { toast(m ? 'Joker gezet' : 'Joker weggehaald'); refresh(true); }, fail);
+    return;
+  }
+  const q = e.target.closest('button[data-q]');
+  if (q && isMember()) saveAnswer(q.dataset.q, q.getAttribute('aria-pressed') === 'true' ? '' : q.dataset.v);
+});
+$('main').addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.q && isMember()) saveAnswer(t.dataset.q, t.type === 'number' ? (t.value === '' ? '' : +t.value) : t.value.trim());
+});
+function saveAnswer(qid, a) {
+  const q = M.questions.find(x => x.id === qid);
+  if (!q || now() >= q.close) { toast('Deze vraag is gesloten.'); return; }
+  (M.bonus[ME.pid] = M.bonus[ME.pid] || {})[qid] = { a, t: now() - 1 };
+  if (tab() === 'bonus') vBonus();
+  Poule.put(P, 'bon/' + ME.pid + '-' + qid, { a }).then(() => { toast('Antwoord opgeslagen'); refresh(true); }, fail);
+}
+
+/* ------------------------------------------------------------------ starten */
+async function start() {
+  try { ME = await Poule.me(); } catch (e) { $('main').innerHTML = '<p class="warn">Dit toestel ondersteunt de beveiliging niet die de poule nodig heeft.</p>'; return; }
+  if (Q.has('nieuw')) { viewNew(); return; }
+  const join = Poule.cleanCode(Q.get('join'));
+  if (join) { viewJoin(join); return; }
+  const code = Poule.cleanCode(Q.get('p'));
+  if (!code) { location.replace('index.html'); return; }
+  P = { code };
+  await refresh();
+  window.addEventListener('hashchange', () => { if (M) { render(); refresh(true); } });
+  setInterval(() => { if (!document.hidden && !document.activeElement.matches('input,textarea,select')) refresh(true); }, 30000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(true); });
+}
+start();
+}
+</script>
+</body>
+</html>
