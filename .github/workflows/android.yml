@@ -40,6 +40,14 @@ jobs:
           echo "POULE_KEYSTORE=$RUNNER_TEMP/sl/poule.p12" >> "$GITHUB_ENV"
           echo "UPDATE_SIGN_KEY_FILE=$RUNNER_TEMP/sl/update.pem" >> "$GITHUB_ENV"
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Eerst de tests: klopt er iets niet, dan komt er geen nieuwe versie uit.
+      - name: Tests
+        run: node --test tests/*.test.js
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

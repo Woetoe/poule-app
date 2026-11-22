@@ -4,29 +4,44 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Poule</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-512.png">
+<meta name="theme-color" content="#111111">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Poule">
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@900&family=Barlow:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root{color-scheme:dark}
-*{box-sizing:border-box}
+*{box-sizing:border-box;min-width:0}
 html,body{margin:0;min-height:100%;background:#111;color:#f3ede0;font:16px/1.5 Barlow,system-ui,sans-serif}
-main{max-width:560px;margin:0 auto;padding:32px 16px 40px}
+main{max-width:560px;margin:0 auto;padding:30px 16px 40px}
 h1{font:900 52px/1 "Big Shoulders Display",Barlow,sans-serif;margin:0}
-.sub{color:#bdb5a5;margin:6px 0 26px}
-a.card{display:block;text-decoration:none;color:inherit;border-radius:16px;padding:20px 18px 18px;margin-bottom:14px;position:relative;overflow:hidden;min-height:150px}
-a.card:focus-visible{outline:3px solid #ff6b00;outline-offset:3px}
-.darts{background:#1c1c1c;border:1px solid #333}
-.darts::before{content:"";position:absolute;left:0;right:0;top:0;height:8px;background:repeating-linear-gradient(90deg,#d01f2e 0 26px,#111 26px 28px,#138a4b 28px 54px,#111 54px 56px)}
-.ek{background:repeating-linear-gradient(90deg,#0c6a38 0 56px,#0e7a41 56px 112px);color:#fff}
-.tag{display:inline-block;font-size:13px;font-weight:700;border-radius:99px;padding:2px 10px;margin-bottom:10px}
-.darts .tag{background:#d01f2e;color:#fff}
-.ek .tag{background:rgba(0,0,0,.3)}
-h2{font:900 34px/1.05 "Big Shoulders Display",Barlow,sans-serif;margin:0 0 4px}
-.card p{margin:0;color:inherit;opacity:.85}
-.go{position:absolute;right:18px;bottom:16px;font-weight:700}
-.note{font-size:14px;color:#a9a294;margin-top:22px}
-.upd{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;border-top:1px solid #333;margin-top:18px;padding-top:14px;font-size:14px;color:#bdb5a5}
+h2{font:900 28px/1.1 "Big Shoulders Display",Barlow,sans-serif;margin:28px 0 10px}
+.sub{color:#bdb5a5;margin:6px 0 20px}
+a.card{display:block;text-decoration:none;color:inherit;border-radius:16px;padding:18px 18px 16px;margin-bottom:12px;position:relative;overflow:hidden;background:#1c1c1c;border:1px solid #333}
+a.card::before{content:"";position:absolute;left:0;right:0;top:0;height:6px;background:repeating-linear-gradient(90deg,#d01f2e 0 26px,#111 26px 28px,#138a4b 28px 54px,#111 54px 56px)}
+a.card:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #ff6b00;outline-offset:3px}
+a.card b{display:block;font:900 30px/1.05 "Big Shoulders Display",Barlow,sans-serif}
+a.card span{color:#bdb5a5;font-size:15px}
+a.card .go{position:absolute;right:18px;bottom:14px;font-weight:700;color:#f3ede0}
+.box{background:#1c1c1c;border:1px solid #333;border-radius:16px;padding:16px;margin-bottom:12px}
+.row{display:flex;gap:8px}
+.row input{flex:1}
+.row button{flex:none}
+input,textarea{width:100%;min-height:48px;font:inherit;font-size:16px;padding:0 12px;border:1px solid #444;border-radius:10px;background:#111;color:#f3ede0}
+input#code{text-transform:uppercase;letter-spacing:.1em;font-weight:700}
+textarea{padding:10px 12px;min-height:90px}
+button{font:inherit;font-weight:700;min-height:48px;border-radius:10px;border:1px solid #444;background:#262626;color:#f3ede0;padding:0 16px;cursor:pointer;white-space:nowrap}
+button.primary{background:#d01f2e;border-color:#d01f2e;color:#fff}
+.big{width:100%}
+.note{font-size:14px;color:#a9a294}
+.warn{color:#ff8a80;font-weight:600}
+details{margin-top:8px}
+summary{cursor:pointer;color:#cfc6b4;font-weight:600;min-height:44px;display:flex;align-items:center}
+.ek{display:inline-block;color:#cfc6b4;margin-top:6px}
+.upd{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;border-top:1px solid #333;margin-top:24px;padding-top:14px;font-size:14px;color:#bdb5a5}
 .upd b{display:block;color:#f3ede0}
-.upd button{font:inherit;font-weight:700;min-height:44px;border-radius:8px;border:1px solid #444;background:#1c1c1c;color:#f3ede0;padding:0 14px}
+.upd button{min-height:44px}
 .upd button.apk{background:#d01f2e;border-color:#d01f2e}
 [hidden]{display:none!important}
 </style>
@@ -35,28 +50,64 @@ h2{font:900 34px/1.05 "Big Shoulders Display",Barlow,sans-serif;margin:0 0 4px}
 <main>
   <h1>Poule</h1>
   <p class="sub">Voorspel met je vrienden wie het best gokt.</p>
-  <a class="card darts" href="darts.html">
-    <span class="tag">Binnenkort</span>
-    <h2>WK Darts 2026/27</h2>
-    <p>11 dec – 3 jan · Alexandra Palace</p>
-    <span class="go">Openen ›</span>
-  </a>
-  <a class="card ek" href="ek.html">
-    <span class="tag">2028</span>
-    <h2>EK 2028</h2>
-    <p>9 juni – 9 juli · met de markt</p>
-    <span class="go">Openen ›</span>
-  </a>
-  <p class="note">Testversie. Je antwoorden blijven op deze telefoon; vrienden, partijen en uitslagen zijn nog voorbeelden.</p>
+
+  <div id="mine"></div>
+
+  <h2>Meedoen</h2>
+  <div class="box">
+    <label for="code" class="note">Code van de poule (8 tekens)</label>
+    <div class="row" style="margin-top:6px"><input id="code" maxlength="20" autocomplete="off" autocapitalize="characters" placeholder="ABCD2345"><button class="primary" id="joinBtn">Meedoen</button></div>
+    <p class="warn" id="codeErr" hidden>Dat is geen geldige code.</p>
+  </div>
+
+  <h2>Zelf een poule maken</h2>
+  <a class="card" href="darts.html?nieuw"><b>WK Darts 2026/27</b><span>11 dec – 3 jan · Alexandra Palace</span><span class="go">Aanmaken ›</span></a>
+
+  <details>
+    <summary>Inloggen met je inlogcode (ander toestel)</summary>
+    <div class="box">
+      <p class="note" style="margin-top:0">Je inlogcode staat in een poule onder "Ik". Plak hem hier om hetzelfde account te gebruiken.</p>
+      <textarea id="lc" placeholder="POULE1.…"></textarea>
+      <button class="big" id="lcBtn" style="margin-top:8px">Inloggen</button>
+      <p class="warn" id="lcErr" hidden></p>
+    </div>
+  </details>
+  <a class="ek" href="ek.html">EK 2028 bekijken (voorbeeld)</a>
+
   <div class="upd" id="upd" hidden>
     <div><b id="ver">Versie</b><span id="updMsg">Updates gaan automatisch.</span></div>
     <button id="updBtn" type="button">Zoeken naar updates</button>
     <button id="apkBtn" type="button" class="apk" hidden>Nieuwe app downloaden</button>
   </div>
 </main>
+<script src="poule.js"></script>
 <script>
 {
-  const A = window.PouleApp, $ = id => document.getElementById(id);
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  function showMine() {
+    const list = Poule.myPoules();
+    $('mine').innerHTML = list.length
+      ? '<h2 style="margin-top:4px">Mijn poules</h2>' + list.map(p => `<a class="card" href="darts.html?p=${p.code}"><b>${esc(p.name || 'Poule')}</b><span>code ${p.code}</span><span class="go">Openen ›</span></a>`).join('')
+      : '<div class="box"><b>Nog geen poule</b><p class="note" style="margin-bottom:0">Kreeg je een code of link van een vriend? Vul hem hieronder in. Of maak zelf een poule en nodig je vrienden uit.</p></div>';
+  }
+  showMine();
+
+  const join = () => {
+    const c = Poule.cleanCode($('code').value);
+    if (!c) { $('codeErr').hidden = false; return; }
+    location.href = 'darts.html?join=' + c;
+  };
+  $('joinBtn').addEventListener('click', join);
+  $('code').addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
+  $('lcBtn').addEventListener('click', async () => {
+    try { await Poule.useLoginCode($('lc').value); $('lc').value = ''; $('lcErr').hidden = true; showMine(); }
+    catch (e) { $('lcErr').hidden = false; $('lcErr').textContent = 'Dat lukte niet: ' + (e.message || 'onbekende fout'); }
+  });
+
+  // In de Android-app: versie en updates
+  const A = window.PouleApp;
   if (A) {
     $('upd').hidden = false;
     const ver = () => { try { $('ver').textContent = 'Versie ' + A.version(); } catch (e) {} };

@@ -82,6 +82,13 @@ def publish(target, apk, build):
         f.write(body)
     with open(os.path.join(target, 'manifest.sig'), 'wb') as f:
         f.write(sign(body))
+    # webversie (iPhone, laptop) via GitHub Pages: woetoe.github.io/poule-app/web/
+    wdir = os.path.join(target, 'web')
+    if os.path.isdir(wdir):
+        shutil.rmtree(wdir)
+    shutil.copytree(WEB, wdir, ignore=shutil.ignore_patterns('manifest.json'))
+    with open(os.path.join(target, '.nojekyll'), 'w') as f:
+        f.write('')
     with open(os.path.join(target, 'README.md'), 'w') as f:
         f.write('# Uitgifte poule-app\n\nAutomatisch gemaakt door de build. Niet met de hand aanpassen.\n')
     print('gepubliceerd', m['version'], len(m['files']), 'bestanden')

@@ -1,0 +1,41 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "r": {
+      "$ruimte": {
+        ".read": "$ruimte.length == 32",
+        ".write": "$ruimte.length == 32",
+        "$soort": {
+          ".validate": "$soort.matches(/^[a-z]{3,16}$/)",
+          "$id": {
+            ".validate": "newData.child('v').isString() && newData.child('v').val().length < 1000000 && newData.child('t').isNumber()"
+          }
+        }
+      }
+    },
+    "g": {
+      "$kamer": {
+        ".read": "$kamer.length == 32",
+        ".write": "$kamer.length == 32",
+        "$soort": {
+          ".validate": "$soort == 'p' || $soort == 'm'",
+          "$id": {
+            ".validate": "newData.child('v').isString() && newData.child('v').val().length < 200000 && newData.child('t').isNumber()"
+          }
+        }
+      }
+    },
+    "s": {
+      "$ruimte": {
+        ".read": "$ruimte.length == 32",
+        ".write": "$ruimte.length == 32",
+        "$bestand": {
+          "$deel": {
+            ".validate": "newData.child('v').isString() && newData.child('v').val().length < 3000000"
+          }
+        }
+      }
+    }
+  }
+}
