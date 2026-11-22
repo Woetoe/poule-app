@@ -1,8 +1,8 @@
 # Poule
 
-Voorspellingspoule voor vrienden: WK darts 2026/27 en EK 2028.
+Voorspellingspoule voor vrienden. Nu: WK darts 2026/27. De EK 2028 volgt later.
 
-- `web/` – de pagina's (startscherm, darts, EK). Dezelfde bestanden zitten in de app en komen later op de weblink voor iPhone.
+- `web/` – de pagina's (startscherm, darts). Dezelfde bestanden zitten in de app en komen later op de weblink voor iPhone.
 - `android/` – Android-app die `web/` toont en zichzelf bijwerkt.
 - `web/poule.js` – gedeelde data: poules, leden, voorspellingen, punten (versleuteld en ondertekend, via de Firebase van W2 Apps).
 - `tools/uitgifte.py` – maakt het ondertekende updatemanifest en zet de webversie klaar.
