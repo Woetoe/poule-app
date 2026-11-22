@@ -2,8 +2,13 @@ plugins {
     id 'com.android.application'
 }
 
-// Elke GitHub-build krijgt een hoger versienummer, zodat een nieuwe APK over de oude heen installeert.
+// Elke GitHub-build krijgt een hoger versienummer.
 def run = (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
+// Ophogen als de Android-schil verandert (Java, manifest, rechten); anders komt nieuwe code niet bij de gebruiker.
+def nativeVersion = file('../native_version.txt').text.trim().toInteger()
+// Publieke sleutel waarmee de app updates controleert.
+def updatePubkey = file('../update_key.pem').text.replaceAll(/-----[A-Z ]+-----/, '').replaceAll(/\s/, '')
+def keystorePath = System.getenv('POULE_KEYSTORE')
 
 android {
     namespace 'nl.wouter.poule'
@@ -14,23 +19,34 @@ android {
         minSdk 24
         targetSdk 34
         versionCode run
-        versionName "0.1.${run}"
+        versionName "0.2.${run}"
+        buildConfigField 'int', 'NATIVE_VERSION', "${nativeVersion}"
+        buildConfigField 'String', 'UPDATE_PUBKEY', "\"${updatePubkey}\""
+        buildConfigField 'String', 'UPDATE_BASE', '"https://raw.githubusercontent.com/Woetoe/poule-app/uitgifte/"'
+        buildConfigField 'String', 'VERSION_PREFIX', '"0.2."'
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     signingConfigs {
-        // Testsleutel: zelfde sleutel bij elke build, zodat updates over de vorige versie installeren.
-        dev {
-            storeFile file('../keystore/poule-dev.jks')
-            storePassword 'poule-dev'
-            keyAlias 'poule'
-            keyPassword 'poule-dev'
+        // De sleutel staat niet in de repo maar als geheim POULE_SLEUTEL in GitHub.
+        poule {
+            if (keystorePath) {
+                storeFile file(keystorePath)
+                storeType 'pkcs12'
+                storePassword 'poule-sleutel'
+                keyAlias 'poule'
+                keyPassword 'poule-sleutel'
+            }
         }
     }
 
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig signingConfigs.dev
+            signingConfig keystorePath ? signingConfigs.poule : null
         }
     }
 

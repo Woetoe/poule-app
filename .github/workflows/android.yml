@@ -8,11 +8,37 @@ on:
 permissions:
   contents: write
 
+# Nooit twee uitgaves tegelijk: dan kan een oudere versie over een nieuwere komen.
+concurrency:
+  group: uitgifte
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      VERSION: 0.2.${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
+
+      # De sleutel staat niet in de repo maar als geheim in GitHub (Settings › Secrets and variables › Actions):
+      #   POULE_SLEUTEL – de sleutel (PKCS12, base64). Daarmee wordt de APK ondertekend én elke update.
+      # Ontbreekt hij, dan stopt de bouw: liever geen uitgave dan een niet-ondertekende.
+      - name: Sleutel klaarzetten
+        env:
+          POULE_SLEUTEL: ${{ secrets.POULE_SLEUTEL }}
+        run: |
+          if [ -z "$POULE_SLEUTEL" ]; then echo "::error::Geheim POULE_SLEUTEL ontbreekt"; exit 1; fi
+          umask 077
+          mkdir -p "$RUNNER_TEMP/sl"
+          echo "$POULE_SLEUTEL" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/sl/poule.p12"
+          openssl pkcs12 -in "$RUNNER_TEMP/sl/poule.p12" -passin pass:poule-sleutel -nocerts -nodes \
+            | openssl ec -out "$RUNNER_TEMP/sl/update.pem"
+          # De sleutel moet passen bij de publieke sleutel in de app, anders weigert de app elke update.
+          openssl ec -in "$RUNNER_TEMP/sl/update.pem" -pubout 2>/dev/null | diff -q - android/update_key.pem \
+            || { echo "::error::POULE_SLEUTEL past niet bij android/update_key.pem"; exit 1; }
+          echo "POULE_KEYSTORE=$RUNNER_TEMP/sl/poule.p12" >> "$GITHUB_ENV"
+          echo "UPDATE_SIGN_KEY_FILE=$RUNNER_TEMP/sl/update.pem" >> "$GITHUB_ENV"
 
       - uses: actions/setup-java@v4
         with:
@@ -25,15 +51,21 @@ jobs:
 
       - name: Webpagina's in de app zetten
         run: |
-          mkdir -p android/app/src/main/assets
-          cp -r web/* android/app/src/main/assets/
+          python3 tools/uitgifte.py manifest ${{ github.run_number }}
+          rm -rf android/app/src/main/assets/www
+          mkdir -p android/app/src/main/assets/www
+          cp -r web/* android/app/src/main/assets/www/
 
       - name: APK bouwen
         working-directory: android
         run: gradle :app:assembleRelease --no-daemon --stacktrace
 
-      - name: APK hernoemen
-        run: cp android/app/build/outputs/apk/release/app-release.apk poule-0.1.${{ github.run_number }}.apk
+      - name: APK controleren en hernoemen
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          AS=$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}" -path '*/build-tools/*/apksigner' -type f 2>/dev/null | sort -V | tail -1)
+          if [ -n "$AS" ]; then "$AS" verify --print-certs "$APK"; fi
+          cp "$APK" "poule-$VERSION.apk"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -41,10 +73,30 @@ jobs:
           path: poule-*.apk
 
       - name: Release maken
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v0.1.${{ github.run_number }}
-          name: Poule 0.1.${{ github.run_number }}
-          files: poule-*.apk
-          make_latest: true
-          body: Installeer poule-0.1.${{ github.run_number }}.apk op je Android-telefoon.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v$VERSION" "poule-$VERSION.apk" \
+            --title "Poule $VERSION" \
+            --notes "Installeer poule-$VERSION.apk op je Android-telefoon. Daarna werkt de app zichzelf bij." \
+            --latest
+
+      # De app haalt updates van de branch 'uitgifte' (ondertekend manifest + bestanden).
+      - name: Update klaarzetten op branch uitgifte
+        run: |
+          git config user.name "Poule bouwer"
+          git config user.email "actions@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin uitgifte >/dev/null; then
+            git fetch --depth 1 origin uitgifte
+            git worktree add uit origin/uitgifte
+            git -C uit checkout -B uitgifte
+          else
+            git worktree add --detach uit
+            git -C uit checkout --orphan uitgifte
+            git -C uit rm -rfq .
+          fi
+          python3 tools/uitgifte.py publish uit "poule-$VERSION.apk" ${{ github.run_number }}
+          cd uit
+          git add -A
+          git commit -q -m "Versie $VERSION"
+          git push -q origin uitgifte

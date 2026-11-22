@@ -24,6 +24,11 @@ h2{font:900 34px/1.05 "Big Shoulders Display",Barlow,sans-serif;margin:0 0 4px}
 .card p{margin:0;color:inherit;opacity:.85}
 .go{position:absolute;right:18px;bottom:16px;font-weight:700}
 .note{font-size:14px;color:#a9a294;margin-top:22px}
+.upd{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;border-top:1px solid #333;margin-top:18px;padding-top:14px;font-size:14px;color:#bdb5a5}
+.upd b{display:block;color:#f3ede0}
+.upd button{font:inherit;font-weight:700;min-height:44px;border-radius:8px;border:1px solid #444;background:#1c1c1c;color:#f3ede0;padding:0 14px}
+.upd button.apk{background:#d01f2e;border-color:#d01f2e}
+[hidden]{display:none!important}
 </style>
 </head>
 <body>
@@ -42,7 +47,36 @@ h2{font:900 34px/1.05 "Big Shoulders Display",Barlow,sans-serif;margin:0 0 4px}
     <p>9 juni – 9 juli · met de markt</p>
     <span class="go">Openen ›</span>
   </a>
-  <p class="note">Testversie 0.1. Je antwoorden blijven op deze telefoon; vrienden, partijen en uitslagen zijn nog voorbeelden.</p>
+  <p class="note">Testversie. Je antwoorden blijven op deze telefoon; vrienden, partijen en uitslagen zijn nog voorbeelden.</p>
+  <div class="upd" id="upd" hidden>
+    <div><b id="ver">Versie</b><span id="updMsg">Updates gaan automatisch.</span></div>
+    <button id="updBtn" type="button">Zoeken naar updates</button>
+    <button id="apkBtn" type="button" class="apk" hidden>Nieuwe app downloaden</button>
+  </div>
 </main>
+<script>
+{
+  const A = window.PouleApp, $ = id => document.getElementById(id);
+  if (A) {
+    $('upd').hidden = false;
+    const ver = () => { try { $('ver').textContent = 'Versie ' + A.version(); } catch (e) {} };
+    ver();
+    $('updBtn').addEventListener('click', () => A.check());
+    $('apkBtn').addEventListener('click', () => A.downloadApk());
+    window.pouleUpdate = e => {
+      const m = {
+        checking: 'Zoeken…',
+        none: 'Je hebt de nieuwste versie.',
+        ready: 'Bijgewerkt naar ' + e.version + '.',
+        apk: 'Er is een nieuwe app-versie (' + e.version + '). Download en installeer hem één keer.',
+        error: 'Zoeken lukte niet. Heb je internet?'
+      };
+      $('updMsg').textContent = m[e.state] || '';
+      $('apkBtn').hidden = e.state !== 'apk';
+      ver();
+    };
+  }
+}
+</script>
 </body>
 </html>
