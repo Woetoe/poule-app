@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EK Poule 2028</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE everyday: vriendenpoule, met een knipoog
+   IDEA een stadionprogramma met scorebord-cijfers
+   PICTURE de wedstrijd- en vraagkaarten zelf; groepsverdeling als balken
+   COLOUR gemaaid grasgroen als kopband, wit/nachtgroen ground, oranje accent
+   TYPE Barlow Condensed 800 + Barlow
+   LAYOUT groene band met titel en 3 kerncijfers, sticky tabs, kaarten in 1-3 kolommen; telefoon: één kolom */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#0b120e);--card:light-dark(#ffffff,#131d17);--soft:light-dark(#f1f5f1,#1a271f);--ink:light-dark(#0f1a14,#e9f1eb);--mute:light-dark(#53645a,#9db1a4);--line:light-dark(#dbe3dd,#2a3a30);--grass:#0c6a38;--or:#ff6b00;--orink:light-dark(#b84a00,#ff8f3d);--good:light-dark(#0c6a38,#58d493);--bad:light-dark(#b3261e,#ff8a80)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 Barlow,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3{font-family:"Barlow Condensed",Barlow,sans-serif;font-weight:800}
+.band{padding-left:max(5vw,16px);padding-right:max(5vw,16px)}
+.wrap{max-width:1100px;margin:0 auto}
+header{background:repeating-linear-gradient(90deg,#0c6a38 0 64px,#0e7a41 64px 128px);color:#fff;padding-top:28px;padding-bottom:22px}
+header h1{font-size:clamp(38px,7vw,56px);line-height:1;margin:0}
+header p{margin:6px 0 0;color:#d9f2e2}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:20px;max-width:560px}
+.kpi{background:rgba(0,0,0,.28);border-radius:10px;padding:10px 12px}
+.kpi b{display:block;font:800 clamp(28px,6vw,38px)/1 "Barlow Condensed",sans-serif;white-space:nowrap}
+.kpi span{font-size:14px;color:#d9f2e2}
+.kpi.or b{color:#ffb27a}
+nav{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;gap:4px;overflow-x:auto}
+nav a{flex:none;padding:14px 12px 12px;color:var(--mute);text-decoration:none;font-weight:600;border-bottom:3px solid transparent;min-height:48px}
+nav a[aria-current=page]{color:var(--ink);border-color:var(--or)}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--or);outline-offset:2px}
+main{padding-top:24px;padding-bottom:64px}
+h2{font-size:32px;line-height:1.05;margin:0 0 4px}
+h3{font-size:24px;line-height:1.1;margin:0 0 8px}
+.lead{color:var(--mute);margin:0 0 18px;max-width:68ch}
+.note{font-size:14px;color:var(--mute)}
+.sect{margin-top:36px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.meta{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:14px;color:var(--mute)}
+.match{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px;margin:10px 0 6px}
+.team{font-weight:600;line-height:1.2}
+.team b{display:block;font:800 26px "Barlow Condensed",sans-serif;letter-spacing:.02em}
+.team.a{text-align:right}
+.score{display:flex;align-items:center;gap:6px}
+.score input{width:52px;height:52px;text-align:center;font:800 26px "Barlow Condensed",sans-serif;border:2px solid var(--line);border-radius:8px;background:var(--soft);color:var(--ink);-moz-appearance:textfield}
+.score input::-webkit-inner-spin-button{-webkit-appearance:none}
+.score i{font-style:normal;color:var(--mute)}
+.board{display:flex;gap:4px}
+.board b{width:44px;height:52px;display:grid;place-items:center;background:#0f1a14;color:#ffd24a;border-radius:6px;font:800 30px "Barlow Condensed",sans-serif}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;color:var(--mute);border-top:1px dashed var(--line);padding-top:8px;margin-top:10px}
+.pts{font-weight:700;border-radius:99px;padding:2px 10px;white-space:nowrap;font-size:14px}
+.pts.hit{background:var(--or);color:#fff}.pts.part{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}.pts.miss{background:var(--soft);color:var(--mute)}.pts.max{background:var(--soft);color:var(--ink)}
+.q h3{margin:8px 0 10px}
+.yn{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.yn button[aria-pressed=true]{background:var(--grass);border-color:var(--grass);color:#fff}
+.yn button.nee[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.dist{margin-top:12px;display:grid;gap:6px}
+.dist .r{display:grid;grid-template-columns:minmax(0,1fr) 3.2em;gap:8px;align-items:center;font-size:14px}
+.dist .t{position:relative;background:var(--soft);border-radius:6px;padding:4px 8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.dist .t span{position:absolute;inset:0 auto 0 0;background:color-mix(in srgb,var(--grass) 28%,transparent);border-radius:6px}
+.dist .t em{position:relative;font-style:normal}
+.dist .r.me .t em{font-weight:700;color:var(--orink)}
+.dist .v{text-align:right;font-weight:600;white-space:nowrap}
+.out{margin-top:10px;font-weight:600}
+label{display:block;font-weight:600;margin-bottom:6px}
+input[type=text],input[type=number],select{width:100%;height:46px;font:inherit;font-size:16px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+input:disabled,select:disabled{opacity:.6}
+button{font:inherit;font-weight:700;min-height:44px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;padding:0 14px}
+button:hover{border-color:var(--ink)}
+button.primary{background:var(--or);border-color:var(--or);color:#fff}
+button:disabled{opacity:.45;cursor:not-allowed}
+.rowl{display:grid;grid-template-columns:32px minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.rowl .pos{font:800 24px "Barlow Condensed",sans-serif;color:var(--mute)}
+.rowl .nm{font-weight:700}
+.rowl small{display:block;font-size:13px;color:var(--mute)}
+.rowl .bar{height:6px;border-radius:3px;background:var(--grass);margin-top:5px}
+.rowl.me .bar{background:var(--or)}.rowl.me .nm{color:var(--orink)}
+.rowl .val{font:800 28px "Barlow Condensed",sans-serif;text-align:right;white-space:nowrap;line-height:1}
+.rowl .val small{font:600 13px Barlow,sans-serif;color:var(--good)}
+.cols{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:28px;align-items:start}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:12px}
+.form .hint{font-weight:400;font-size:13px;color:var(--mute)}
+.warn{color:var(--bad);font-weight:600;font-size:14px}
+.okm{color:var(--good);font-weight:600;font-size:14px}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:18px;text-align:center}
+.drop input{margin-top:10px;max-width:100%}
+.report{margin-top:12px;font-size:14px}
+.report li{margin:2px 0}
+.res{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,180px);gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.res span{font-size:15px}
+.res small{display:block;color:var(--mute);font-size:13px}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}
+td.r,th.r{text-align:right;white-space:nowrap}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:10px;display:flex;gap:12px;align-items:center;font-weight:600;max-width:calc(100% - 32px);z-index:9}
+.toast button{min-height:36px;background:transparent;color:var(--or);border-color:var(--or)}
+[hidden]{display:none!important}
+@media(max-width:760px){.cols{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:420px){.score input{width:46px;height:48px}.board b{width:38px;height:46px}.team b{font-size:22px}.res{grid-template-columns:minmax(0,1fr)}}
+.back{display:inline-block;color:#d9f2e2;text-decoration:none;font-weight:600;margin:-12px 0 8px;padding:8px 0;min-height:40px}
+</style>
+</head>
+<body>
+<header class="band">
+  <div class="wrap">
+    <a class="back" href="index.html">‹ Poules</a>
+    <h1 id="hName">EK Poule 2028</h1>
+    <p id="hSub">9 juni – 9 juli 2028 · Engeland, Schotland, Wales en Ierland</p>
+    <div class="kpis">
+      <div class="kpi"><b id="kRank">#–</b><span>jouw plek</span></div>
+      <div class="kpi"><b id="kPts">0</b><span>punten</span></div>
+      <div class="kpi or"><b id="kPot">€0</b><span id="kPotL">pot</span></div>
+    </div>
+  </div>
+</header>
+<nav class="band"><div class="wrap">
+  <a href="#voorspel">Voorspellen</a><a href="#markt">Markt</a><a href="#stand">Stand</a><a href="#instellen">Instellen</a>
+</div></nav>
+
+<main class="band"><div class="wrap">
+  <section id="v-voorspel">
+    <h2>Wedstrijden</h2>
+    <p class="lead">Vul je score in; hij wordt opgeslagen en sluit bij de aftrap. Uitslagen komen automatisch binnen.</p>
+    <div class="grid" id="matches"></div>
+    <div class="sect">
+      <h2>Bonusvragen</h2>
+      <p class="lead">Voetbalvragen over het hele toernooi, uit het Excel-bestand.</p>
+      <div class="grid" id="bonus"></div>
+    </div>
+    <p class="note">Voorbeeld: landen, uitslagen en vrienden zijn verzonnen tot de loting bekend is. In de demo blijven vragen open om te testen.</p>
+  </section>
+
+  <section id="v-markt" hidden>
+    <h2>De markt</h2>
+    <p class="lead">Alles behalve voetbal. Elk goed antwoord levert de punten op die bij de vraag staan; de balken laten zien wat de groep denkt.</p>
+    <div class="grid" id="market"></div>
+  </section>
+
+  <section id="v-stand" hidden>
+    <div class="cols">
+      <div>
+        <h2>Stand</h2>
+        <p class="lead">W = wedstrijden, B = bonusvragen, M = markt.</p>
+        <div id="rank"></div>
+      </div>
+      <div class="card">
+        <h3>Prijzenpot</h3>
+        <p class="note" id="potLine"></p>
+        <table><tbody id="prizes"></tbody></table>
+        <h3 style="margin-top:22px">Puntentelling</h3>
+        <table><tbody id="rules"></tbody></table>
+      </div>
+    </div>
+  </section>
+
+  <section id="v-instellen" hidden>
+    <h2>Poule instellen</h2>
+    <p class="lead">Dit vraagt de app bij het aanmaken van een poule. Na de eerste aftrap gaat het op slot; in de demo kun je alles nog wijzigen en zie je de stand meteen meebewegen.</p>
+
+    <div class="card">
+      <h3>Inleg en prijzen</h3>
+      <div class="form">
+        <div style="grid-column:1/-1"><label for="cName">Naam poule</label><input type="text" id="cName" maxlength="40"></div>
+        <div><label for="cInleg">Inleg per persoon (€)</label><input type="number" id="cInleg" min="0" step="1" inputmode="decimal"></div>
+        <div><label for="cP1">1e plaats (%)</label><input type="number" id="cP1" min="0" max="100" inputmode="numeric"></div>
+        <div><label for="cP2">2e plaats (%)</label><input type="number" id="cP2" min="0" max="100" inputmode="numeric"></div>
+        <div><label for="cP3">3e plaats (%)</label><input type="number" id="cP3" min="0" max="100" inputmode="numeric"></div>
+      </div>
+      <p id="cPotMsg" class="note"></p>
+    </div>
+
+    <div class="card sect">
+      <h3>Punten per wedstrijd</h3>
+      <div class="form">
+        <div><label for="cExact">Exacte uitslag</label><input type="number" id="cExact" min="0" max="50" inputmode="numeric"></div>
+        <div><label for="cDiff">Winnaar + doelsaldo</label><input type="number" id="cDiff" min="0" max="50" inputmode="numeric"></div>
+        <div><label for="cToto">Alleen winnaar/gelijk</label><input type="number" id="cToto" min="0" max="50" inputmode="numeric"></div>
+        <div><label for="cKo">Factor knock-out</label><input type="number" id="cKo" min="1" max="5" step="0.5" inputmode="decimal"></div>
+      </div>
+      <p class="note">Zet "winnaar + doelsaldo" gelijk aan "alleen winnaar" als je dat niveau niet wilt.</p>
+    </div>
+
+    <div class="card sect">
+      <h3>Vragen importeren</h3>
+      <p class="note" style="margin-top:0">Upload het ingevulde vragen-template (.xlsx, tabblad "Vragen"). Antwoorden op vragen met dezelfde ID blijven bewaard.</p>
+      <div class="drop"><label for="file">Kies Excel-bestand</label><input type="file" id="file" accept=".xlsx,.xls"></div>
+      <div class="report" id="report"></div>
+    </div>
+
+    <div class="card sect">
+      <h3>Uitkomsten invullen</h3>
+      <p class="note" style="margin-top:0">Als beheerder vul je hier de uitkomst in, of je zet hem in de Excel en uploadt opnieuw.</p>
+      <div id="resolve"></div>
+    </div>
+
+    <p class="sect"><button id="reset">Demo terugzetten</button></p>
+  </section>
+</div></main>
+
+<div class="toast" id="toast" role="status" hidden><span id="tMsg"></span><button id="tUndo">Ongedaan maken</button></div>
+
+<script src="xlsx.full.min.js"></script>
+<script>
+{
+const ME='Wouter';
+const FRIENDS=['Bart','Sanne','Joris','Lotte','Kevin','Femke','Mehmet'];
+const MATCHES=[
+ {id:1,d:'Vr 9 jun',t:'21:00',c:'Cardiff',h:['WAL','Wales'],a:['SUI','Zwitserland'],r:[1,1]},
+ {id:2,d:'Za 10 jun',t:'18:00',c:'Manchester',h:['ENG','Engeland'],a:['CRO','Kroatië'],r:[3,1]},
+ {id:3,d:'Za 10 jun',t:'21:00',c:'Glasgow',h:['NED','Nederland'],a:['POL','Polen'],r:[2,0]},
+ {id:4,d:'Zo 11 jun',t:'15:00',c:'Dublin',h:['IRL','Ierland'],a:['ITA','Italië']},
+ {id:5,d:'Zo 11 jun',t:'18:00',c:'Londen',h:['GER','Duitsland'],a:['DEN','Denemarken']},
+ {id:6,d:'Ma 12 jun',t:'21:00',c:'Birmingham',h:['NED','Nederland'],a:['AUT','Oostenrijk']},
+ {id:7,d:'Di 13 jun',t:'18:00',c:'Edinburgh',h:['SCO','Schotland'],a:['ESP','Spanje']},
+ {id:8,d:'Di 13 jun',t:'21:00',c:'Liverpool',h:['FRA','Frankrijk'],a:['BEL','België']}
+];
+const PEOPLE8='Bart;Sanne;Joris;Lotte;Kevin;Femke;Mehmet;Wouter'.split(';');
+const QS0=[
+ {id:'M01',cat:'Markt',q:'Draagt Kevin bij elke Oranje-wedstrijd zijn oranje pruik?',type:'Ja/Nee',opts:[],max:3,rule:'Vast',close:'2028-06-09T18:00',out:'Ja',note:''},
+ {id:'M02',cat:'Markt',q:'Hoeveel liter bier gaat er samen doorheen op de EK-avonden?',type:'Getal',opts:[],max:5,rule:'Dichtstbij',close:'2028-06-09T18:00',out:'',note:'Wie het dichtst zit krijgt de punten'},
+ {id:'M03',cat:'Markt',q:'Wie komt het vaakst te laat bij het samen kijken?',type:'Meerkeuze',opts:PEOPLE8,max:4,rule:'Vast',close:'2028-06-09T18:00',out:'',note:''},
+ {id:'M04',cat:'Markt',q:'Wie valt als eerste in slaap tijdens een wedstrijd?',type:'Meerkeuze',opts:PEOPLE8,max:4,rule:'Vast',close:'2028-06-09T18:00',out:'',note:''},
+ {id:'M05',cat:'Markt',q:'Regent het in Londen tijdens de finale?',type:'Ja/Nee',opts:[],max:2,rule:'Vast',close:'2028-07-09T18:00',out:'',note:''},
+ {id:'B01',cat:'Bonus',q:'Wie wordt Europees kampioen?',type:'Meerkeuze',opts:['Engeland','Frankrijk','Spanje','Duitsland','Nederland','Portugal','Italië','België'],max:15,rule:'Vast',close:'2028-06-09T18:00',out:'',note:'Opties aanvullen na de loting'},
+ {id:'B02',cat:'Bonus',q:'Wie wordt topscorer van het toernooi?',type:'Tekst',opts:[],max:10,rule:'Vast',close:'2028-06-09T18:00',out:'',note:'Achternaam is genoeg'},
+ {id:'B03',cat:'Bonus',q:'Hoe ver komt Oranje?',type:'Meerkeuze',opts:['Groepsfase','Achtste finale','Kwartfinale','Halve finale','Finale','Kampioen'],max:5,rule:'Vast',close:'2028-06-09T18:00',out:'',note:''},
+ {id:'B04',cat:'Bonus',q:'Hoeveel doelpunten vallen er in het hele toernooi?',type:'Getal',opts:[],max:5,rule:'Dichtstbij',close:'2028-06-09T18:00',out:'',note:'51 wedstrijden'}
+];
+const BASE=()=>({cfg:{name:'EK Poule 2028',inleg:10,p:[60,30,10],exact:5,diff:3,toto:2,ko:1.5},
+ pred:{1:[1,1],2:[2,0],3:[3,2],6:[2,1]},qs:JSON.parse(JSON.stringify(QS0)),
+ ans:{M01:'Ja',M02:45,M03:'Joris',B01:'Nederland',B03:'Kwartfinale'}});
+let S;
+try{S=JSON.parse(localStorage.getItem('ekpoule-v2'))}catch(e){}
+if(!S||!S.cfg||!S.qs)S=BASE();
+let undo=null,tTimer;
+const save=()=>{try{localStorage.setItem('ekpoule-v2',JSON.stringify(S))}catch(e){}};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s??'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+const eur=n=>'€'+(Math.round(n*100)/100).toLocaleString('nl-NL',{maximumFractionDigits:2});
+const rnd=s=>{let h=2166136261;for(const c of s)h=Math.imul(h^c.charCodeAt(0),16777619);h^=h>>>13;h=Math.imul(h,1274126177);return ((h^h>>>16)>>>0)/4294967296};
+
+/* vrienden: voorspellingen en antwoorden (voorbeeld, vast per naam) */
+const fPred=(f,m)=>[Math.floor(rnd(f+m+'h')*4),Math.floor(rnd(f+m+'a')*3)];
+const SCORERS=['Kane','Mbappé','Gakpo','Yamal','Musiala'];
+function fAns(f,q){
+ const x=rnd(f+q.id);
+ if(q.type==='Ja/Nee')return x<.58?'Ja':'Nee';
+ if(q.type==='Meerkeuze')return q.opts.length?q.opts[Math.floor(x*q.opts.length)]:'';
+ if(q.type==='Getal'){const r=({M02:[25,90],B04:[105,145]})[q.id]||[1,100];return Math.round(r[0]+x*(r[1]-r[0]))}
+ return SCORERS[Math.floor(x*SCORERS.length)];
+}
+const ansOf=(p,q)=>p===ME?S.ans[q.id]:fAns(p,q);
+const ALL=()=>[...FRIENDS,ME];
+
+/* punten */
+const sgn=x=>Math.sign(x[0]-x[1]);
+function mPts(p,m){
+ if(!m.r||!p||p[0]===''||p[1]===''||p[0]==null)return 0;
+ const c=S.cfg;let v=0;
+ if(+p[0]===m.r[0]&&+p[1]===m.r[1])v=c.exact;
+ else if(sgn(p)===sgn(m.r)&&p[0]-p[1]===m.r[0]-m.r[1])v=c.diff;
+ else if(sgn(p)===sgn(m.r))v=c.toto;
+ return m.ko?v*c.ko:v;
+}
+function qPts(q,p){
+ if(q.out===''||q.out==null)return null;
+ const a=ansOf(p,q);
+ if(a===undefined||a==='')return 0;
+ if(q.rule==='Dichtstbij'){
+  const o=parseFloat(q.out),d=x=>Math.abs(parseFloat(x)-o);
+  const ds=ALL().map(n=>d(ansOf(n,q))).filter(Number.isFinite);
+  return Number.isFinite(d(a))&&d(a)===Math.min(...ds)?q.max:0;
+ }
+ return norm(a)===norm(q.out)?q.max:0;
+}
+function totals(p){
+ const w=MATCHES.reduce((s,m)=>s+mPts(p===ME?S.pred[m.id]:fPred(p,m.id),m),0);
+ const sum=cat=>S.qs.filter(q=>q.cat===cat).reduce((s,q)=>s+(qPts(q,p)||0),0);
+ const b=sum('Bonus'),mk=sum('Markt');
+ return {n:p,w,b,m:mk,t:w+b+mk,me:p===ME};
+}
+const standings=()=>ALL().map(totals).sort((a,b)=>b.t-a.t||b.w-a.w);
+const pot=()=>S.cfg.inleg*ALL().length;
+
+/* render */
+function renderHead(){
+ const c=S.cfg,st=standings();
+ $('hName').textContent=c.name||'EK Poule';
+ $('hSub').textContent=`9 juni – 9 juli 2028 · inleg ${eur(c.inleg)} p.p. · ${ALL().length} deelnemers`;
+ $('kRank').textContent='#'+(st.findIndex(x=>x.me)+1);
+ $('kPts').textContent=st.find(x=>x.me).t;
+ $('kPot').textContent=eur(pot());
+ document.title=c.name||'EK Poule';
+}
+function renderMatches(){
+ $('matches').innerHTML=MATCHES.map(m=>{
+  const p=S.pred[m.id]||['',''];
+  const mid=m.r
+   ?`<div class="board" aria-label="Uitslag ${m.r[0]}-${m.r[1]}"><b>${m.r[0]}</b><b>${m.r[1]}</b></div>`
+   :`<div class="score"><input id="p${m.id}h" type="number" inputmode="numeric" min="0" max="20" value="${p[0]}" aria-label="Goals ${m.h[1]}" data-m="${m.id}" data-i="0"><i>–</i><input id="p${m.id}a" type="number" inputmode="numeric" min="0" max="20" value="${p[1]}" aria-label="Goals ${m.a[1]}" data-m="${m.id}" data-i="1"></div>`;
+  let foot;
+  if(m.r){const s=mPts(p,m),c=S.cfg;foot=`<span>Jij: ${p[0]!==''?p[0]+'-'+p[1]:'niets ingevuld'}</span><span class="pts ${s===c.exact?'hit':s?'part':'miss'}">+${s} pnt</span>`}
+  else foot=`<span>${p[0]!==''&&p[1]!==''?'Opgeslagen':'Nog invullen'}</span><span>Sluit ${m.d.toLowerCase()} ${m.t}</span>`;
+  return `<article class="card"><div class="meta"><span>${m.d} · ${m.t}</span><span>${m.c}${m.r?' · uitslag automatisch':''}</span></div>
+   <div class="match"><div class="team a"><b>${m.h[0]}</b>${m.h[1]}</div>${mid}<div class="team"><b>${m.a[0]}</b>${m.a[1]}</div></div>
+   <div class="foot">${foot}</div></article>`}).join('');
+}
+const fmtD=s=>{const d=new Date(s);return isNaN(d)?esc(s):d.toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short'})+' '+d.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'})};
+function dist(q){
+ const mine=S.ans[q.id];
+ if(q.type==='Getal'){
+  const v=ALL().map(n=>parseFloat(ansOf(n,q))).filter(Number.isFinite);
+  if(!v.length)return '';
+  const avg=v.reduce((a,b)=>a+b,0)/v.length;
+  return `<p class="note" style="margin:10px 0 0">Groep gemiddeld ${Math.round(avg)} · laagste ${Math.min(...v)} · hoogste ${Math.max(...v)}</p>`;
+ }
+ if(q.type==='Tekst')return '';
+ const opts=q.type==='Ja/Nee'?['Ja','Nee']:q.opts;
+ const cnt=opts.map(o=>({o,n:ALL().filter(p=>norm(ansOf(p,q))===norm(o)).length}));
+ const tot=cnt.reduce((s,x)=>s+x.n,0)||1;
+ const show=cnt.sort((a,b)=>b.n-a.n).slice(0,q.type==='Ja/Nee'?2:4);
+ return `<div class="dist" aria-label="Wat de groep denkt">${show.map(x=>{const pc=Math.round(x.n/tot*100);return `<div class="r${norm(mine)===norm(x.o)?' me':''}"><div class="t"><span style="width:${pc}%"></span><em>${esc(x.o)}</em></div><div class="v">${pc}%</div></div>`}).join('')}</div>`;
+}
+function qCard(q){
+ const a=S.ans[q.id]??'',done=q.out!==''&&q.out!=null,dis=done?' disabled':'';
+ let ctl;
+ if(q.type==='Ja/Nee')ctl=`<div class="yn"><button data-q="${q.id}" data-v="Ja" aria-pressed="${a==='Ja'}"${dis}>Ja</button><button class="nee" data-q="${q.id}" data-v="Nee" aria-pressed="${a==='Nee'}"${dis}>Nee</button></div>`;
+ else if(q.type==='Meerkeuze')ctl=`<select id="q-${q.id}" data-q="${q.id}" aria-label="Antwoord"${dis}><option value="">Kies…</option>${q.opts.map(o=>`<option${o===a?' selected':''}>${esc(o)}</option>`).join('')}</select>`;
+ else ctl=`<input id="q-${q.id}" data-q="${q.id}" type="${q.type==='Getal'?'number':'text'}"${q.type==='Getal'?' inputmode="decimal"':''} value="${esc(a)}" placeholder="${q.type==='Getal'?'Jouw getal':'Jouw antwoord'}" aria-label="Antwoord"${dis}>`;
+ const p=qPts(q,ME);
+ const chip=done?`<span class="pts ${p?'hit':'miss'}">+${p} pnt</span>`:`<span class="pts max">${q.max} pnt</span>`;
+ return `<article class="card q"><div class="meta"><span>${esc(q.id)} · ${q.rule==='Dichtstbij'?'dichtstbij wint':esc(q.type)}</span>${chip}</div>
+  <h3>${esc(q.q)}</h3>${ctl}${dist(q)}
+  ${done?`<p class="out">Uitkomst: ${esc(q.out)}</p>`:''}
+  <div class="foot"><span>${esc(q.note)||'&nbsp;'}</span><span>Sluit ${fmtD(q.close)}</span></div></article>`;
+}
+function renderQs(){
+ for(const [cat,el] of [['Bonus','bonus'],['Markt','market']]){
+  const qs=S.qs.filter(q=>q.cat===cat);
+  $(el).innerHTML=qs.length?qs.map(qCard).join(''):'<p class="note">Nog geen vragen. Importeer ze via Instellen.</p>';
+ }
+}
+function renderStand(){
+ const st=standings(),max=Math.max(...st.map(x=>x.t),1),c=S.cfg;
+ $('rank').innerHTML=st.map((x,i)=>{const pr=i<3&&c.p[i]?pot()*c.p[i]/100:0;return `<div class="rowl${x.me?' me':''}"><span class="pos">${i+1}</span><div><span class="nm">${esc(x.n)}${x.me?' (jij)':''}</span><small>W ${x.w} · B ${x.b} · M ${x.m}</small><div class="bar" style="width:${x.t/max*100}%"></div></div><span class="val">${x.t}${pr?`<small><br>${eur(pr)}</small>`:''}</span></div>`}).join('');
+ $('potLine').textContent=`${ALL().length} deelnemers × ${eur(c.inleg)} = ${eur(pot())}`;
+ $('prizes').innerHTML=c.p.map((p,i)=>`<tr><td>${i+1}e plaats</td><td class="r">${p}%</td><td class="r">${eur(pot()*p/100)}</td></tr>`).join('');
+ const mk=S.qs.filter(q=>q.cat==='Markt').reduce((s,q)=>s+q.max,0),bo=S.qs.filter(q=>q.cat==='Bonus').reduce((s,q)=>s+q.max,0);
+ $('rules').innerHTML=[['Exacte uitslag',c.exact],['Winnaar + doelsaldo',c.diff],['Alleen winnaar/gelijk',c.toto],['Knock-out','×'+String(c.ko).replace('.',',')],['Bonusvragen (max)',bo],['Marktvragen (max)',mk]].map(r=>`<tr><td>${r[0]}</td><td class="r">${r[1]}</td></tr>`).join('');
+}
+function renderCfg(){
+ const c=S.cfg;
+ $('cName').value=c.name;$('cInleg').value=c.inleg;[$('cP1').value,$('cP2').value,$('cP3').value]=c.p;
+ $('cExact').value=c.exact;$('cDiff').value=c.diff;$('cToto').value=c.toto;$('cKo').value=c.ko;
+ potMsg();
+}
+function potMsg(){
+ const c=S.cfg,sum=c.p.reduce((a,b)=>a+b,0);
+ $('cPotMsg').innerHTML=sum===100?`<span class="okm">Pot ${eur(pot())}: ${c.p.map((p,i)=>`${i+1}e ${eur(pot()*p/100)}`).join(' · ')}</span>`:`<span class="warn">De percentages tellen op tot ${sum}%, dat moet 100% zijn.</span>`;
+}
+function renderResolve(){
+ $('resolve').innerHTML=S.qs.map(q=>{
+  let ctl;
+  if(q.type==='Ja/Nee'||q.type==='Meerkeuze'){const o=q.type==='Ja/Nee'?['Ja','Nee']:q.opts;ctl=`<select id="r-${q.id}" data-r="${q.id}" aria-label="Uitkomst"><option value="">Nog open</option>${o.map(x=>`<option${x===q.out?' selected':''}>${esc(x)}</option>`).join('')}</select>`}
+  else ctl=`<input id="r-${q.id}" data-r="${q.id}" type="${q.type==='Getal'?'number':'text'}" value="${esc(q.out)}" placeholder="Nog open" aria-label="Uitkomst">`;
+  return `<div class="res"><span>${esc(q.q)}<small>${q.cat} · ${q.max} pnt</small></span>${ctl}</div>`}).join('');
+}
+function all(){renderHead();renderMatches();renderQs();renderStand();renderCfg();renderResolve()}
+function soft(){renderHead();renderMatches();renderQs();renderStand();potMsg()}
+
+function toast(msg,fn){
+ $('tMsg').textContent=msg;$('toast').hidden=false;undo=fn||null;$('tUndo').hidden=!fn;
+ clearTimeout(tTimer);tTimer=setTimeout(()=>{$('toast').hidden=true;undo=null},6000);
+}
+const VIEWS=['voorspel','markt','stand','instellen'];
+function route(){
+ const v=(location.hash||'#voorspel').slice(1),ok=VIEWS.includes(v)?v:'voorspel';
+ for(const s of VIEWS)$('v-'+s).hidden=s!==ok;
+ document.querySelectorAll('nav a').forEach(a=>{if(a.getAttribute('href')==='#'+ok)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')});
+}
+
+/* Excel-import */
+const TYPES=['Ja/Nee','Meerkeuze','Getal','Tekst'];
+function toIso(v){
+ if(v instanceof Date&&!isNaN(v)){const p=n=>String(n).padStart(2,'0');return `${v.getFullYear()}-${p(v.getMonth()+1)}-${p(v.getDate())}T${p(v.getHours())}:${p(v.getMinutes())}`}
+ if(typeof v==='number'&&window.XLSX){const d=XLSX.SSF.parse_date_code(v);const p=n=>String(n).padStart(2,'0');return `${d.y}-${p(d.m)}-${p(d.d)}T${p(d.H)}:${p(d.M)}`}
+ const m=String(v||'').match(/^(\d{1,2})-(\d{1,2})-(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+ if(m){const p=n=>String(n).padStart(2,'0');return `${m[3]}-${p(m[2])}-${p(m[1])}T${p(m[4]||0)}:${p(m[5]||0)}`}
+ return String(v||'');
+}
+function parseRows(rows){
+ const head=rows[0].map(h=>norm(h));
+ const col=k=>head.findIndex(h=>h.startsWith(k));
+ const ix={id:col('id'),cat:col('categorie'),q:col('vraag'),type:col('type'),opts:col('opties'),max:col('max'),rule:col('puntenregel'),close:col('sluit'),out:col('uitkomst'),note:col('toelichting')};
+ const missing=Object.entries(ix).filter(([k,v])=>v<0&&!['out','note'].includes(k)).map(([k])=>k);
+ if(missing.length)return {err:['Kolommen ontbreken: '+missing.join(', ')]};
+ const qs=[],err=[],seen=new Set();
+ rows.slice(1).forEach((r,i)=>{
+  const g=k=>ix[k]<0?'':r[ix[k]]??'';const line=i+2;
+  const text=String(g('q')).trim();if(!text)return;
+  const q={id:String(g('id')).trim(),cat:String(g('cat')).trim(),q:text,type:String(g('type')).trim(),
+   opts:String(g('opts')).split(';').map(s=>s.trim()).filter(Boolean),max:Number(g('max')),rule:String(g('rule')).trim()||'Vast',
+   close:toIso(g('close')),out:String(g('out')).trim(),note:String(g('note')).trim()};
+  const e=[];
+  if(!q.id)e.push('ID ontbreekt');else if(seen.has(q.id))e.push('ID '+q.id+' komt dubbel voor');
+  if(!['Markt','Bonus'].includes(q.cat))e.push('categorie moet Markt of Bonus zijn');
+  if(!TYPES.includes(q.type))e.push('onbekend type "'+q.type+'"');
+  if(q.type==='Meerkeuze'&&q.opts.length<2)e.push('minstens 2 opties nodig');
+  if(!(q.max>0))e.push('max punten ontbreekt');
+  if(!['Vast','Dichtstbij'].includes(q.rule))e.push('puntenregel moet Vast of Dichtstbij zijn');
+  if(q.rule==='Dichtstbij'&&q.type!=='Getal')e.push('Dichtstbij kan alleen bij Getal');
+  if(!q.close)e.push('sluitdatum ontbreekt');
+  if(q.out&&q.type==='Meerkeuze'&&!q.opts.some(o=>norm(o)===norm(q.out)))e.push('uitkomst staat niet in de opties');
+  if(q.out&&q.type==='Ja/Nee'&&!['ja','nee'].includes(norm(q.out)))e.push('uitkomst moet Ja of Nee zijn');
+  if(q.type==='Ja/Nee'&&q.out)q.out=norm(q.out)==='ja'?'Ja':'Nee';
+  if(e.length)err.push(`Rij ${line} (${q.id||'zonder ID'}): ${e.join('; ')}`);else{seen.add(q.id);qs.push(q)}
+ });
+ return {qs,err};
+}
+$('file').addEventListener('change',async e=>{
+ const f=e.target.files[0];if(!f)return;
+ const rep=$('report');
+ if(!window.XLSX){rep.innerHTML='<p class="warn">De Excel-lezer kon niet laden. Probeer het opnieuw.</p>';return}
+ try{
+  const buf=f.arrayBuffer?await f.arrayBuffer():await new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=no;r.readAsArrayBuffer(f)});
+  const wb=XLSX.read(buf,{type:'array',cellDates:true});
+  const name=wb.SheetNames.find(n=>norm(n)==='vragen')||wb.SheetNames[0];
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true,defval:''});
+  const res=parseRows(rows);
+  if(!res.qs||!res.qs.length){rep.innerHTML=`<p class="warn">Geen vragen geïmporteerd.</p><ul>${(res.err||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`;return}
+  const snap=JSON.stringify(S);
+  S.qs=res.qs;save();all();
+  const mk=res.qs.filter(q=>q.cat==='Markt'),bo=res.qs.filter(q=>q.cat==='Bonus');
+  rep.innerHTML=`<p class="okm">${res.qs.length} vragen geladen uit "${esc(f.name)}": ${mk.length} markt (max ${mk.reduce((s,q)=>s+q.max,0)} pnt), ${bo.length} bonus (max ${bo.reduce((s,q)=>s+q.max,0)} pnt).</p>${res.err.length?`<p class="warn">${res.err.length} rij(en) overgeslagen:</p><ul>${res.err.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}`;
+  toast('Vragen geïmporteerd',()=>{S=JSON.parse(snap);save();all();rep.innerHTML=''});
+ }catch(err){rep.innerHTML=`<p class="warn">Dit bestand kon ik niet lezen (${esc(err.message)}).</p>`}
+ e.target.value='';
+});
+
+/* events */
+$('matches').addEventListener('change',e=>{
+ const t=e.target;if(!t.dataset.m)return;
+ const id=t.dataset.m,p=S.pred[id]||['',''];
+ p[+t.dataset.i]=t.value===''?'':Math.max(0,Math.min(20,parseInt(t.value,10)||0));
+ S.pred[id]=p;save();soft();
+});
+function setAns(id,v){S.ans[id]=v;save();soft()}
+for(const el of ['bonus','market']){
+ $(el).addEventListener('click',e=>{const b=e.target.closest('button[data-q]');if(b)setAns(b.dataset.q,b.getAttribute('aria-pressed')==='true'?'':b.dataset.v)});
+ $(el).addEventListener('change',e=>{const t=e.target;if(t.dataset.q)setAns(t.dataset.q,t.type==='number'?(t.value===''?'':+t.value):t.value)});
+}
+$('resolve').addEventListener('change',e=>{
+ const t=e.target;if(!t.dataset.r)return;
+ const q=S.qs.find(x=>x.id===t.dataset.r);q.out=String(t.value).trim();save();soft();
+ toast(q.out?'Uitkomst opgeslagen, punten bijgewerkt':'Vraag weer open');
+});
+const num=(id,d)=>{const v=parseFloat($(id).value);return Number.isFinite(v)?v:d};
+$('v-instellen').addEventListener('input',e=>{
+ if(!e.target.id||!e.target.id.startsWith('c'))return;
+ const c=S.cfg;
+ c.name=$('cName').value;c.inleg=Math.max(0,num('cInleg',0));c.p=[num('cP1',0),num('cP2',0),num('cP3',0)];
+ c.exact=num('cExact',0);c.diff=num('cDiff',0);c.toto=num('cToto',0);c.ko=Math.max(1,num('cKo',1));
+ save();soft();
+});
+$('tUndo').addEventListener('click',()=>{if(undo)undo();$('toast').hidden=true;undo=null});
+$('reset').addEventListener('click',()=>{const snap=JSON.stringify(S);S=BASE();save();all();$('report').innerHTML='';toast('Demo teruggezet',()=>{S=JSON.parse(snap);save();all()})});
+window.addEventListener('hashchange',route);
+all();route();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Elke GitHub-build krijgt een hoger versienummer, zodat een nieuwe APK over de oude heen installeert.
+def run = (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
+
+android {
+    namespace 'nl.wouter.poule'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'nl.wouter.poule'
+        minSdk 24
+        targetSdk 34
+        versionCode run
+        versionName "0.1.${run}"
+    }
+
+    signingConfigs {
+        // Testsleutel: zelfde sleutel bij elke build, zodat updates over de vorige versie installeren.
+        dev {
+            storeFile file('../keystore/poule-dev.jks')
+            storePassword 'poule-dev'
+            keyAlias 'poule'
+            keyPassword 'poule-dev'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.dev
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}

@@ -1,0 +1,50 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Webpagina's in de app zetten
+        run: |
+          mkdir -p android/app/src/main/assets
+          cp -r web/* android/app/src/main/assets/
+
+      - name: APK bouwen
+        working-directory: android
+        run: gradle :app:assembleRelease --no-daemon --stacktrace
+
+      - name: APK hernoemen
+        run: cp android/app/build/outputs/apk/release/app-release.apk poule-0.1.${{ github.run_number }}.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: poule-apk
+          path: poule-*.apk
+
+      - name: Release maken
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.${{ github.run_number }}
+          name: Poule 0.1.${{ github.run_number }}
+          files: poule-*.apk
+          make_latest: true
+          body: Installeer poule-0.1.${{ github.run_number }}.apk op je Android-telefoon.
