@@ -324,13 +324,15 @@ function vPredict() {
   $('main').innerHTML = order.map(rd => {
     const jm = Poule.jokerOf(M, ME.pid, rd), rStart = Poule.roundStart(rd), jOpen = c.joker && T < rStart;
     const myJ = ((M.jokers[ME.pid] || {})[String(rd.n)] || {}).m;
-    const ms = rd.matches.slice().sort((a, b) => a.start - b.start);
-    return `<div class="rhead"><h2>${esc(rd.name)}</h2><span class="note">best of ${rd.bo} sets · punten ×${nl(Poule.factorOf(c, rd.n))}${c.joker ? (jOpen ? ' · joker kiezen tot ' + Poule.fmtTime(rStart) : ' · joker staat vast') : ''}</span></div>
+    const ms = rd.matches.slice().sort(byStart);
+    return `<div class="rhead"><h2>${esc(rd.name)}</h2><span class="note">best of ${rd.bo} sets · punten ×${nl(Poule.factorOf(c, rd.n))}${c.joker ? (jOpen ? ' · joker kiezen tot ' + (isFinite(rStart) ? Poule.fmtTime(rStart) : 'de eerste partij') : ' · joker staat vast') : ''}</span></div>
       <div class="grid">${ms.map(m => matchCard(rd, m, T, jOpen ? myJ : jm, jOpen)).join('')}</div>`;
   }).join('') + '<p class="note sect">Tijden in Nederlandse tijd. Een voorspelling telt als hij vóór de start van de partij is opgeslagen.</p>';
 }
+const when = t => (t ? Poule.fmtTime(t) : 'tijd volgt');
+const byStart = (a, b) => (a.start || Infinity) - (b.start || Infinity) || (a.pos || 0) - (b.pos || 0);
 function matchCard(rd, m, T, joker, jOpen) {
-  const pred = (M.preds[ME.pid] || {})[m.id], started = T >= m.start, c = M.cfg;
+  const pred = (M.preds[ME.pid] || {})[m.id], started = !!m.res || (!!m.start && T >= m.start), c = M.cfg;
   const p = pred && pred.t < m.start ? pred.s : (pred && !started ? pred.s : null);
   let body;
   if (!started) {
@@ -341,7 +343,7 @@ function matchCard(rd, m, T, joker, jOpen) {
       <div class="g"><span>${esc(lastName(m.b))} wint</span><div class="row">${o.filter(x => x[1] === n).map(chip).join('')}</div></div></div>
       <div class="foot"><span>${p ? 'Opgeslagen: ' + p.join('-') : 'Nog invullen'}</span>
       ${c.joker ? `<button class="jk" data-j="${m.id}" data-r="${rd.n}" aria-pressed="${joker === m.id}"${jOpen ? '' : ' disabled'}>★ Joker</button>` : ''}
-      <span>Sluit ${Poule.fmtTime(m.start)}</span></div>`;
+      <span>${m.start ? 'Sluit ' + Poule.fmtTime(m.start) : 'Tijd volgt'}</span></div>`;
   } else {
     const r = Poule.matchPoints(c, rd, m, pred, joker === m.id);
     const w = m.res ? Math.sign(m.res[0] - m.res[1]) : 0;
@@ -357,7 +359,7 @@ function matchCard(rd, m, T, joker, jOpen) {
     const ok = m.res && s && Math.sign(s[0] - s[1]) === Math.sign(m.res[0] - m.res[1]);
     return `<span class="${ok ? 'ok' : ''}">${esc(c.members[pid].name)} ${s ? s.join('-') : '–'}</span>`;
   }).join('') : '';
-  return `<article class="card"><div class="meta"><span>${esc(rd.name)}</span><span>${Poule.fmtTime(m.start)}</span></div>${body}${others ? `<div class="others">${others}</div>` : ''}</article>`;
+  return `<article class="card"><div class="meta"><span>${esc(rd.name)}</span><span>${when(m.start)}</span></div>${body}${others ? `<div class="others">${others}</div>` : ''}</article>`;
 }
 
 /* --- stand */
@@ -415,7 +417,7 @@ function vAdmin() {
       <h3 class="sect">Deelnemers (${Object.keys(c.members).length})</h3><div class="list">${Object.entries(c.members).map(([pid, m]) => `<div class="it"><span>${esc(m.name)}${pid === c.admin.pid ? '<small>beheerder</small>' : ''}</span>${pid === c.admin.pid ? '' : `<span class="btns"><button data-del="${pid}">Verwijderen</button></span>`}</div>`).join('')}</div></div>
   </div><div>
     <div class="card"><h3>Partijen en bonusvragen importeren</h3>
-      <p class="note" style="margin-top:0">Gebruik het Excel-template: tabblad "Partijen" (ronde, datum, tijd in NL-tijd, spelers, eventueel uitslag) en/of "Vragen". Opnieuw uploaden werkt partijen bij; voorspellingen blijven staan.</p>
+      <p class="note" style="margin-top:0">Gebruik het Excel-template: tabblad "Partijen" (ronde, datum, tijd in NL-tijd, spelers, eventueel uitslag) en/of "Vragen". Zet ronde 1 in de volgorde van de loting: daarna schuiven de winnaars vanzelf door. Opnieuw uploaden werkt partijen bij; voorspellingen blijven staan.</p>
       <div class="drop"><label for="file">Kies Excel-bestand</label><input type="file" id="file" accept=".xlsx,.xls"></div><div class="report" id="report"></div></div>
     <div class="card sect"><h3>Partij toevoegen</h3><div class="form">
       <div><label for="aR">Ronde</label><select id="aR">${Poule.ROUNDS.map(r => `<option value="${r.n}">${r.name}</option>`).join('')}</select></div>
@@ -425,9 +427,9 @@ function vAdmin() {
       <div class="wide"><label for="aB">Speler 2</label><input type="text" id="aB" maxlength="40"></div>
     </div><div class="btns"><button class="primary" id="aGo">Toevoegen</button></div></div>
   </div></div>
-  <div class="sect"><h2>Uitslagen</h2><p class="lead">Kies de setstand zodra een partij klaar is; de stand rekent meteen mee.</p>
+  <div class="sect"><h2>Uitslagen</h2><p class="lead">Kies de setstand zodra een partij klaar is; de stand rekent meteen mee en de winnaar schuift vanzelf door naar de volgende ronde. Tijden zijn in NL-tijd.</p>
     ${rs.filter(r => (r.matches || []).length).map(rd => `<div class="card" style="margin-bottom:12px"><h3>${esc(rd.name)} <span class="note">best of ${rd.bo}</span></h3>
-      ${rd.matches.slice().sort((a, b) => a.start - b.start).map(m => `<div class="res"><span>${esc(m.a)} – ${esc(m.b)}<small>${Poule.fmtTime(m.start)}</small></span>
+      ${rd.matches.slice().sort(byStart).map(m => `<div class="res"><span>${esc(m.a)} – ${esc(m.b)}<input type="datetime-local" data-time="${m.id}" data-r="${rd.n}" value="${Poule.amsLocal(m.start)}" aria-label="Starttijd (NL)" style="margin-top:4px;min-height:40px"></span>
         <select data-res="${m.id}" data-r="${rd.n}" aria-label="Uitslag"><option value="">Nog geen uitslag</option>${Poule.scoreOptions(rd.bo).map(x => `<option value="${x.join('-')}"${m.res && m.res[0] === x[0] && m.res[1] === x[1] ? ' selected' : ''}>${x.join('-')}</option>`).join('')}</select>
         <button data-rm="${m.id}" data-r="${rd.n}" aria-label="Partij verwijderen">✕</button></div>`).join('')}</div>`).join('') || '<div class="empty">Nog geen partijen.</div>'}
   </div>
@@ -456,7 +458,16 @@ function vAdmin() {
   $('main').querySelectorAll('[data-res]').forEach(s => s.addEventListener('change', () => act(async () => {
     const rd = JSON.parse(JSON.stringify(M.rounds[s.dataset.r])), m = rd.matches.find(x => x.id === s.dataset.res);
     m.res = s.value ? s.value.split('-').map(Number) : null;
-    await Poule.put(P, 'rnd/' + rd.n, rd); toast(m.res ? 'Uitslag opgeslagen' : 'Uitslag gewist');
+    if (m.res && !m.start) m.start = Date.now(); // zonder tijd: voorspellingen sluiten nu
+    const nx = await saveRounds(Object.assign({}, M.rounds, { [rd.n]: rd }), [rd.n]);
+    toast(m.res ? (nx ? 'Uitslag opgeslagen · volgende ronde bijgewerkt' : 'Uitslag opgeslagen') : 'Uitslag gewist');
+  })));
+  $('main').querySelectorAll('[data-time]').forEach(i => i.addEventListener('change', () => act(async () => {
+    const t = Poule.fromAmsLocal(i.value);
+    if (!t) { toast('Vul datum en tijd in.'); return; }
+    const rd = JSON.parse(JSON.stringify(M.rounds[i.dataset.r])), m = rd.matches.find(x => x.id === i.dataset.time);
+    m.start = t;
+    await Poule.put(P, 'rnd/' + rd.n, rd); toast('Tijd opgeslagen: ' + Poule.fmtTime(t));
   })));
   $('main').querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Zeker?'; return; }
@@ -478,6 +489,14 @@ async function act(fn) {
   try { await fn(); await refresh(true); } catch (e) { fail(e); }
 }
 
+/** Slaat gewijzigde rondes op en zet daarna winnaars door naar de volgende ronde. Geeft het aantal bijgewerkte vervolgrondes. */
+async function saveRounds(all, changedNs) {
+  const adv = await Poule.advance(all);
+  const todo = new Set([...changedNs.map(String), ...adv.changed.map(String)]);
+  for (const n of todo) await Poule.put(P, 'rnd/' + n, adv.rounds[n]);
+  return adv.changed.length;
+}
+
 async function addMatches(list) {
   const touched = {};
   let added = 0, updated = 0;
@@ -487,11 +506,15 @@ async function addMatches(list) {
     touched[x.n] = rd;
     const id = await Poule.matchId(x.n, x.a, x.b);
     const ex = rd.matches.find(m => m.id === id);
-    if (ex) { ex.start = x.start; if (x.res) ex.res = x.res; updated++; }
-    else { rd.matches.push({ id, a: x.a, b: x.b, start: x.start, res: x.res || null }); added++; }
+    if (ex) { if (x.start) ex.start = x.start; if (x.res) ex.res = x.res; updated++; }
+    else {
+      const pos = Math.max(0, ...rd.matches.map(m => m.pos || 0)) + 1;
+      rd.matches.push({ id, a: x.a, b: x.b, start: x.start, res: x.res || null, pos }); added++;
+    }
   }
-  for (const rd of Object.values(touched)) await Poule.put(P, 'rnd/' + rd.n, rd);
-  return { added, updated };
+  const all = Object.assign({}, M.rounds, touched);
+  const nx = await saveRounds(all, Object.keys(touched).map(Number));
+  return { added, updated, next: nx };
 }
 
 /* Excel: tabblad Partijen en/of Vragen */
@@ -554,7 +577,7 @@ async function importExcel(e) {
         if (er.length) { errs.push(`Partijen rij ${i + 2}: ${er.join(', ')}`); return; }
         list.push({ n, a, b, start: Poule.amsToEpoch(d[0], d[1], d[2], t[0], t[1]), res });
       });
-      if (list.length) { const r = await addMatches(list); msgs.push(`${r.added} partijen toegevoegd, ${r.updated} bijgewerkt`); }
+      if (list.length) { const r = await addMatches(list); msgs.push(`${r.added} partijen toegevoegd, ${r.updated} bijgewerkt${r.next ? ', volgende ronde bijgewerkt' : ''}`); }
     }
     const vr = sheetRows(wb, 'vragen');
     if (vr && vr.length > 1) {
@@ -609,7 +632,7 @@ $('main').addEventListener('click', e => {
   if (b && isMember()) {
     const mid = b.dataset.m, s = b.dataset.s.split('-').map(Number);
     const rd = M.rounds[b.dataset.r], m = rd && rd.matches.find(x => x.id === mid);
-    if (!m || now() >= m.start) { toast('Deze partij is al begonnen.'); return; }
+    if (!m || m.res || (m.start && now() >= m.start)) { toast('Deze partij is al begonnen.'); return; }
     (M.preds[ME.pid] = M.preds[ME.pid] || {})[mid] = { s, t: now() - 1 };
     render();
     Poule.put(P, 'vsp/' + ME.pid + '-' + mid, { s }).then(t => { if (t >= m.start) toast('Te laat: de partij was al begonnen.'); refresh(true); }, fail);
