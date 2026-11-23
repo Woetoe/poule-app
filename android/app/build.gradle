@@ -55,8 +55,10 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
+    // Android Lint: fouten stoppen de bouw, waarschuwingen staan in het rapport.
     lint {
-        abortOnError false
-        checkReleaseBuilds false
+        abortOnError true
+        checkReleaseBuilds true
+        warningsAsErrors false
     }
 }

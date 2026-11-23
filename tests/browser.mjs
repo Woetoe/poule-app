@@ -86,6 +86,6 @@ try {
   await go(B, '/index.html'); await B.screenshot({ path: SHOT + '/6-start-met-poule.png' });
   await go(B, '/darts.html?p=' + code + '#ik'); await B.waitForFunction(() => (document.getElementById('lc')?.value || '').startsWith('POULE1.'));
   step('inlogcode zichtbaar');
-} catch (e) { process.exitCode = 1; console.log('FOUT:', e.message.split('\n')[0]); for (const [n, p] of Object.entries(globalThis.PAGES || {})) { try { console.log(n, (await p.textContent('#main')).slice(0, 400)); } catch (_) {} } }
+} catch (e) { process.exitCode = 1; console.log('FOUT:', e.message.split('\n')[0]); for (const [n, p] of Object.entries(globalThis.PAGES || {})) { try { console.log(n, (await p.textContent('#main')).slice(0, 400)); } catch { /* pagina al dicht */ } } }
 console.log('paginafouten:', errors.length ? errors : 'geen');
 await browser.close(); db.stop(); srv.close();

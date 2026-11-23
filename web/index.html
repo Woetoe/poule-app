@@ -108,7 +108,7 @@ summary{cursor:pointer;color:#cfc6b4;font-weight:600;min-height:44px;display:fle
   const A = window.PouleApp;
   if (A) {
     $('upd').hidden = false;
-    const ver = () => { try { $('ver').textContent = 'Versie ' + A.version(); } catch (e) {} };
+    const ver = () => { try { $('ver').textContent = 'Versie ' + A.version(); } catch (e) { /* oude app zonder versie */ } };
     ver();
     $('updBtn').addEventListener('click', () => A.check());
     $('apkBtn').addEventListener('click', () => A.downloadApk());

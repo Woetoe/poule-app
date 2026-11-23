@@ -1,0 +1,61 @@
+name: Controle
+
+# Op elke branch behalve main en uitgifte: alles controleren zonder iets uit te geven.
+on:
+  push:
+    branches-ignore: [main, uitgifte]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  controle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: ESLint en Node-tests
+        run: |
+          npm ci --no-audit --no-fund
+          npx eslint .
+          node --test tests/*.test.js
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: pylint en pytest
+        run: |
+          pip install pylint==3.3.3 pytest==8.3.4
+          pylint tools/uitgifte.py tests/test_uitgifte.py
+          pytest -q
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Android Lint en testbouw
+        run: |
+          python3 tools/uitgifte.py manifest 0
+          mkdir -p android/app/src/main/assets/www
+          cp -r web/* android/app/src/main/assets/www/
+          cd android
+          gradle :app:lintDebug :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Lint-rapport bewaren
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-rapport
+          path: android/app/build/reports/lint-results-debug.*
+          if-no-files-found: ignore

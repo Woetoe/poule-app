@@ -1,0 +1,9 @@
+[tool.pylint.format]
+max-line-length = 120
+
+[tool.pylint."messages control"]
+# korte namen als f, m en a zijn hier gewoon leesbaar
+good-names = ["f", "m", "a", "i"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -45,7 +45,7 @@
     return Array.from(a, b => alphabet[b % alphabet.length]).join('');
   }
   const sget = k => { try { return env.storage ? JSON.parse(env.storage.getItem(k) || 'null') : null; } catch (e) { return null; } };
-  const sset = (k, v) => { try { if (env.storage) { if (v == null) env.storage.removeItem(k); else env.storage.setItem(k, JSON.stringify(v)); } } catch (e) {} };
+  const sset = (k, v) => { try { if (env.storage) { if (v == null) env.storage.removeItem(k); else env.storage.setItem(k, JSON.stringify(v)); } } catch (e) { /* opslag vol of geblokkeerd */ } };
   const dbUrl = () => String(sget('poule-db') || DEFAULT_DB).replace(/\/+$/, '');
 
   function cleanCode(text) {
@@ -147,34 +147,35 @@
   const known = code => myPoules().find(q => q.code === code) || null;
 
   // ---------------------------------------------------------------- database
+  // Records: /p/<ruimte>/<soort>/<sleutel>~<willekeurig> = {v, t}. De regels laten alleen nieuw schrijven toe
+  // (niets overschrijven of wissen) en eisen dat t de servertijd is. Elke wijziging is dus een nieuwe versie;
+  // de laatste versie van vóór de deadline telt. Oude poules staan nog onder /r (zonder versies).
+  const BASE = 'p', OLD = 'r';
   async function put(P, path, data) {
     const id = await me();
     const j = JSON.stringify(data);
     const s = await sign(id.priv, path + '\n' + j);
     const v = await seal(P.key, { j, by: id.pid, s });
-    const r = await env.fetch(dbUrl() + '/r/' + P.room + '/' + path + '.json', {
+    const r = await env.fetch(dbUrl() + '/' + BASE + '/' + P.room + '/' + path + '~' + rnd(8, LOWER) + '.json', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ v, t: { '.sv': 'timestamp' } })
     });
+    if (r.status === 401 || r.status === 403) throw new Error('De database weigert dit. Zijn de nieuwe databaseregels al geplakt?');
     if (!r.ok) throw new Error('Opslaan lukte niet (' + r.status + ').');
     const out = await r.json();
     return out && out.t;
   }
-  async function del(P, path) {
-    const r = await env.fetch(dbUrl() + '/r/' + P.room + '/' + path + '.json', { method: 'DELETE' });
-    if (!r.ok) throw new Error('Verwijderen lukte niet (' + r.status + ').');
-  }
   const unsealed = new Map(); // versleutelde tekst → inhoud (dezelfde tekst ontsleutelt altijd hetzelfde)
   /** Alles van de poule ophalen en ontsleutelen (nog niet gecontroleerd). */
-  async function fetchAll(P) {
-    const r = await env.fetch(dbUrl() + '/r/' + P.room + '.json?t=' + env.now(), { cache: 'no-store' });
+  async function fetchAll(P, base) {
+    const r = await env.fetch(dbUrl() + '/' + (base || BASE) + '/' + P.room + '.json?t=' + env.now(), { cache: 'no-store' });
     if (!r.ok) throw new Error('Ophalen lukte niet (' + r.status + ').');
     const tree = (await r.json()) || {};
     const out = [];
     for (const soort of Object.keys(tree)) {
       const group = tree[soort] || {};
-      for (const id of Object.keys(group)) {
-        const node = group[id];
+      for (const key of Object.keys(group)) {
+        const node = group[key];
         if (!node || typeof node.v !== 'string') continue;
         try {
           const ck = P.room + '|' + node.v;
@@ -184,6 +185,7 @@
             if (unsealed.size > 20000) unsealed.clear();
             unsealed.set(ck, o);
           }
+          const id = key.split('~')[0];
           out.push({ path: soort + '/' + id, soort, id, j: o.j, by: o.by, s: o.s, t: node.t });
         } catch (e) { /* niet te ontsleutelen: overslaan */ }
       }
@@ -192,65 +194,144 @@
   }
 
   // ---------------------------------------------------------------- model bouwen (met controle)
+  /** Laatste versie uit een lijst (oplopend op tijd), of de laatste van vóór `before`. */
+  function latest(list, before) {
+    if (!list || !list.length) return null;
+    for (let i = list.length - 1; i >= 0; i--) if (before == null || list[i].t < before) return list[i];
+    return null;
+  }
+  const ADMIN_KINDS = ['rnd', 'vrg', 'uit', 'tij'];
+
   /** Bouwt uit de records het beeld van de poule. Alleen ondertekend en toegestaan telt. */
-  async function build(P, recs) {
-    const M = { cfg: null, rounds: {}, questions: [], preds: {}, jokers: {}, bonus: {}, requests: [], rejected: 0, adminChanged: false };
-    const cfgRec = recs.find(r => r.path === 'cfg/main');
-    if (!cfgRec) return M;
-    let cfg;
-    try { cfg = JSON.parse(cfgRec.j); } catch (e) { M.rejected++; return M; }
-    const adminPub = (P.admin && P.admin.pub) || (cfg.admin && cfg.admin.pub);
-    const adminPid = (P.admin && P.admin.pid) || (cfg.admin && cfg.admin.pid);
-    if (!cfg.admin || cfg.admin.pid !== adminPid || !samePub(cfg.admin.pub, adminPub) || cfgRec.by !== adminPid ||
-        !(await verify(adminPub, cfgRec.path + '\n' + cfgRec.j, cfgRec.s))) {
-      M.rejected++;
-      M.adminChanged = !!P.admin;
-      return M;
-    }
-    M.cfg = cfg;
-    const members = cfg.members || {};
+  async function build(P, recsIn) {
+    const M = { cfg: null, admin: null, rounds: {}, questions: [], preds: {}, jokers: {}, bonus: {}, requests: [], rejected: 0, adminChanged: false };
+    const recs = recsIn.slice().sort((a, b) => (a.t || 0) - (b.t || 0));
+    const parse = r => { try { return JSON.parse(r.j); } catch (e) { return undefined; } };
+    const msg = r => r.path + '\n' + r.j;
+
+    // 1. De beheerder is wie de allereerste instellingen schreef; die versie kan niemand wissen of vervangen.
+    let admin = null;
     for (const r of recs) {
-      if (r.path === 'cfg/main') continue;
-      let d;
-      try { d = JSON.parse(r.j); } catch (e) { M.rejected++; continue; }
-      const msg = r.path + '\n' + r.j;
-      if (r.soort === 'rnd' || r.soort === 'vrg') {
-        if (r.by !== adminPid || !(await verify(adminPub, msg, r.s))) { M.rejected++; continue; }
+      if (r.path !== 'cfg/main') continue;
+      const d = parse(r);
+      if (d && d.admin && d.admin.pid === r.by && d.admin.pub && await verify(d.admin.pub, msg(r), r.s)) {
+        admin = { pid: d.admin.pid, pub: pubOf(d.admin.pub) };
+        break;
+      }
+      M.rejected++;
+    }
+    if (!admin) return M;
+    if (P.admin && (P.admin.pid !== admin.pid || !samePub(P.admin.pub, admin.pub))) { M.adminChanged = true; return M; }
+    M.admin = admin;
+    const byAdmin = r => r.by === admin.pid && verify(admin.pub, msg(r), r.s);
+
+    // 2. De nieuwste instellingen van de beheerder.
+    for (const r of recs) {
+      if (r.soort !== 'cfg') continue;
+      const d = parse(r);
+      if (r.path === 'cfg/main' && d && await byAdmin(r)) { d.admin = admin; M.cfg = d; } else if (d === undefined || r.by !== admin.pid) M.rejected++;
+    }
+    if (!M.cfg) return M;
+    const members = M.cfg.members || {};
+    const refused = new Set(M.cfg.rejected || []);
+
+    // 3. De rest: beheerder (rondes, vragen, uitslagen, tijden) en deelnemers (voorspellingen, joker, bonus).
+    const res = {}, tim = {}, reqs = {};
+    for (const r of recs) {
+      if (r.soort === 'cfg') continue;
+      const d = parse(r);
+      if (d === undefined) { M.rejected++; continue; }
+      if (ADMIN_KINDS.includes(r.soort)) {
+        if (!(await byAdmin(r))) { M.rejected++; continue; }
         if (r.soort === 'rnd') M.rounds[r.id] = d;
-        else M.questions = d.list || [];
+        else if (r.soort === 'vrg') M.questions = d.list || [];
+        else if (r.soort === 'uit') res[r.id] = d.res || null;
+        else tim[r.id] = d.start || null;
         continue;
       }
       if (r.soort === 'spe') {
-        if (r.id !== r.by || !d.pub || !(await verify(d.pub, msg, r.s))) { M.rejected++; continue; }
-        if (!members[r.by]) M.requests.push({ pid: r.by, name: String(d.name || '').slice(0, 30), pub: pubOf(d.pub), t: r.t });
+        if (r.id !== r.by || !d.pub || !(await verify(d.pub, msg(r), r.s))) { M.rejected++; continue; }
+        reqs[r.by] = { pid: r.by, name: String(d.name || '').slice(0, 30), pub: pubOf(d.pub), t: r.t };
         continue;
       }
       const mem = members[r.by];
-      if (!mem || !r.id.startsWith(r.by + '-') || !(await verify(mem.pub, msg, r.s))) { M.rejected++; continue; }
+      if (!mem || !r.id.startsWith(r.by + '-') || !(await verify(mem.pub, msg(r), r.s))) { M.rejected++; continue; }
       const key = r.id.slice(r.by.length + 1);
-      if (r.soort === 'vsp') (M.preds[r.by] = M.preds[r.by] || {})[key] = { s: d.s, t: r.t };
-      else if (r.soort === 'jok') (M.jokers[r.by] = M.jokers[r.by] || {})[key] = { m: d.m, t: r.t };
-      else if (r.soort === 'bon') (M.bonus[r.by] = M.bonus[r.by] || {})[key] = { a: d.a, t: r.t };
+      const list = o => { const p = (o[r.by] = o[r.by] || {}); return (p[key] = p[key] || []); };
+      if (r.soort === 'vsp') list(M.preds).push({ s: d.s, t: r.t });
+      else if (r.soort === 'jok') list(M.jokers).push({ m: d.m, t: r.t });
+      else if (r.soort === 'bon') list(M.bonus).push({ a: d.a, t: r.t });
       else M.rejected++;
     }
-    M.requests.sort((a, b) => (a.t || 0) - (b.t || 0));
+    // Uitslagen en tijden worden per partij opgeslagen en over de rondes gelegd.
+    for (const rd of Object.values(M.rounds)) {
+      for (const m of rd.matches || []) {
+        if (m.id in tim) m.start = tim[m.id];
+        m.res = m.id in res ? res[m.id] : (m.res || null);
+      }
+    }
+    M.requests = Object.values(reqs).filter(q => !members[q.pid] && !refused.has(q.pid)).sort((a, b) => (a.t || 0) - (b.t || 0));
     return M;
   }
+
+  /** Alleen de opbouw van een ronde (uitslagen en latere tijden gaan apart). */
+  const structure = rd => ({ n: rd.n, name: rd.name, bo: rd.bo,
+    matches: (rd.matches || []).map(m => ({ id: m.id, a: m.a, b: m.b, pos: m.pos || null, start: m.start || null })) });
 
   /** Openen: code → ruimte, ophalen, controleren. Bij de eerste keer wordt de beheerder onthouden. */
   async function load(code) {
     const P = await derive(code);
     const k = known(code);
     P.admin = k && k.admin || null;
-    const recs = await fetchAll(P);
-    const M = await build(P, recs);
+    let M = await build(P, await fetchAll(P, BASE));
+    if (!M.cfg && !M.adminChanged) {
+      // poule van vóór de strengere regels: staat nog onder /r
+      const old = await build(P, await fetchAll(P, OLD).catch(() => []));
+      if (old.cfg) { M = old; M.legacy = true; }
+    }
     if (M.cfg && !P.admin) {
-      P.admin = M.cfg.admin;
-      remember({ code, admin: M.cfg.admin, name: M.cfg.name, kind: M.cfg.kind });
+      P.admin = M.admin;
+      remember({ code, admin: M.admin, name: M.cfg.name, kind: M.cfg.kind });
     } else if (M.cfg && k && k.name !== M.cfg.name) {
       remember(Object.assign({}, k, { name: M.cfg.name, kind: M.cfg.kind }));
     }
     return { P, M };
+  }
+
+  /**
+   * Oude poule (/r) overzetten naar /p. De beheerder zet instellingen, vragen, rondes en uitslagen over;
+   * elke deelnemer daarna zijn eigen antwoorden (eenmalig, alleen wat er in /p nog niet is).
+   */
+  async function migrate(code) {
+    const id = await me();
+    const P = await derive(code);
+    const k = known(code);
+    P.admin = k && k.admin || null;
+    const old = await build(P, await fetchAll(P, OLD).catch(() => []));
+    if (!old.cfg) return false;
+    const cur = await build(P, await fetchAll(P, BASE));
+    if (!cur.cfg) {
+      if (old.admin.pid !== id.pid) return false; // wacht op de beheerder
+      await put(P, 'cfg/main', old.cfg);
+      await put(P, 'vrg/main', { list: old.questions });
+      for (const rd of Object.values(old.rounds)) {
+        await put(P, 'rnd/' + rd.n, structure(rd));
+        for (const m of rd.matches || []) if (m.res) await put(P, 'uit/' + m.id, { res: m.res });
+      }
+    }
+    if (sget('poule-over-' + code)) return true;
+    const now = await build(P, await fetchAll(P, BASE));
+    if (now.cfg && now.cfg.members[id.pid]) {
+      for (const [kind, src, dst, field] of [['vsp', old.preds, now.preds, 's'], ['jok', old.jokers, now.jokers, 'm'], ['bon', old.bonus, now.bonus, 'a']]) {
+        for (const [key, list] of Object.entries(src[id.pid] || {})) {
+          if ((dst[id.pid] || {})[key]) continue;
+          const last = latest(list);
+          if (last) await put(P, kind + '/' + id.pid + '-' + key, { [field]: last[field] });
+        }
+      }
+      sset('poule-over-' + code, 1);
+    }
+    return true;
   }
 
   // ---------------------------------------------------------------- acties
@@ -338,12 +419,17 @@
     if (joker && cfg.joker) pts *= 2;
     return { pts: Math.round(pts * 100) / 100, win, exact };
   }
-  /** De geldige joker van een speler in een ronde (vóór de eerste partij van die ronde gezet). */
+  /** De voorspelling die telt: de laatste van vóór de start (zonder starttijd: de laatste). */
+  const predOf = (M, pid, m) => latest((M.preds[pid] || {})[m.id], m.start || null);
+  /** De joker die telt: de laatste van vóór de eerste partij van de ronde. */
   function jokerOf(M, pid, rd) {
-    const j = (M.jokers[pid] || {})[String(rd.n)];
-    if (!j || !M.cfg.joker || !(j.t < roundStart(rd))) return null;
+    const rs = roundStart(rd);
+    const j = latest((M.jokers[pid] || {})[String(rd.n)], isFinite(rs) ? rs : null);
+    if (!j || !j.m || !M.cfg.joker) return null;
     return (rd.matches || []).some(m => m.id === j.m) ? j.m : null;
   }
+  /** Het bonusantwoord dat telt: het laatste van vóór de sluittijd. */
+  const answerOf = (M, pid, q) => latest((M.bonus[pid] || {})[q.id], q.close || null);
   const norm = s => String(s == null ? '' : s).trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   const numv = x => parseFloat(String(x == null ? '' : x).replace(',', '.'));
   function textMatch(a, out) {
@@ -355,11 +441,11 @@
   }
   function bonusPoints(M, q, pid) {
     if (q.out === '' || q.out == null) return null;
-    const ans = (M.bonus[pid] || {})[q.id];
-    if (!ans || ans.a === '' || ans.a == null || !(ans.t < q.close)) return 0;
+    const ans = answerOf(M, pid, q);
+    if (!ans || ans.a === '' || ans.a == null) return 0;
     if (q.rule === 'Dichtstbij') {
       const o = numv(q.out);
-      const dist = p => { const a = (M.bonus[p] || {})[q.id]; return a && a.t < q.close ? Math.abs(numv(a.a) - o) : NaN; };
+      const dist = p => { const a = answerOf(M, p, q); return a ? Math.abs(numv(a.a) - o) : NaN; };
       const ds = Object.keys(M.cfg.members || {}).map(dist).filter(Number.isFinite);
       const mine = dist(pid);
       return Number.isFinite(mine) && Math.abs(mine - Math.min(...ds)) < 1e-9 ? q.max : 0;
@@ -374,7 +460,7 @@
       for (const rd of Object.values(M.rounds)) {
         const jm = jokerOf(M, pid, rd);
         for (const m of rd.matches || []) {
-          const r = matchPoints(cfg, rd, m, (M.preds[pid] || {})[m.id], jm === m.id);
+          const r = matchPoints(cfg, rd, m, predOf(M, pid, m), jm === m.id);
           w += r.pts; if (r.exact) exact++; if (r.win) wins++;
         }
       }
@@ -474,7 +560,8 @@
 
   const api = {
     DEFAULT_DB, ROUNDS, setEnv: e => Object.assign(env, e), cleanCode, derive, me, loginCode, useLoginCode,
-    myPoules, remember, forget, known, put, del, fetchAll, build, load, create, join, defaultCfg, defaultQuestions,
+    myPoules, remember, forget, known, put, fetchAll, build, load, migrate, create, join, defaultCfg, defaultQuestions,
+    latest, predOf, answerOf, structure,
     amsToEpoch, fmtTime, matchPoints, jokerOf, bonusPoints, standings, roundStart, factorOf, matchId, parseScore,
     scoreOptions, norm, numv, textMatch, samePub, pubOf, advance, winnerOf, amsLocal, fromAmsLocal
   };

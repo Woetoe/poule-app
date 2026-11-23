@@ -95,27 +95,27 @@ test('hele poule: maken, meedoen, voorspellen, punten, valsspelen', async () => 
   // Partij 1 is begonnen en gespeeld: 3-1. Bart voorspelt daarna nog partij 1 opnieuw (te laat)
   as('wouter');
   ({ P, M } = await Poule.load(code));
-  assert.strictEqual(M.rounds['1'], undefined, 'gehackte ronde telt niet en overschreef de echte');
+  assert.strictEqual(M.rounds['1'].name, 'Ronde 1', 'ronde van de indringer telt niet; de echte blijft');
   await sleep(5);
-  const started = Date.now();
-  rd.matches[0].start = started;
-  rd.matches[0].res = [3, 1];
-  await Poule.put(P, 'rnd/1', rd);
+  await Poule.put(P, 'tij/' + m1, { start: Date.now() });
+  await Poule.put(P, 'uit/' + m1, { res: [3, 1] });
   await Poule.put(P, 'vrg/main', { list: M.questions.map(q => (q.id === 'kampioen' ? Object.assign({}, q, { out: 'Luke Littler' }) : q)) });
 
   as('bart');
   ({ P } = await Poule.load(code));
   await Poule.put(P, 'jok/' + bart + '-1', { m: m2 }); // joker verzetten na de start: telt niet
+  await Poule.put(P, 'vsp/' + bart + '-' + m1, { s: [0, 3] }); // te late voorspelling: de oude blijft gelden
 
   ({ P, M } = await Poule.load(code));
   assert.ok(M.rejected >= 1, 'record van de indringer geweigerd');
-  assert.strictEqual(Poule.jokerOf(M, bart, M.rounds['1']), null, 'te laat verzette joker telt niet');
+  assert.strictEqual(Poule.jokerOf(M, bart, M.rounds['1']), m1, 'te laat verzette joker telt niet; de eerdere blijft');
+  assert.deepStrictEqual(Poule.predOf(M, bart, M.rounds['1'].matches[0]).s, [3, 1], 'te late voorspelling telt niet');
   const st = Poule.standings(M);
   const rb = st.rows.find(r => r.pid === bart), rw = st.rows.find(r => r.pid === wouter);
-  // Bart: winnaar 2 + exact 3 = 5 (joker te laat verzet → geen ×2) + bonus 15
-  assert.strictEqual(rb.w, 5);
+  // Bart: (winnaar 2 + exact 3) × joker 2 = 10 + bonus 15
+  assert.strictEqual(rb.w, 10);
   assert.strictEqual(rb.b, 15);
-  assert.strictEqual(rb.t, 20);
+  assert.strictEqual(rb.t, 25);
   // Wouter: goede winnaar 2
   assert.strictEqual(rw.t, 2);
   assert.strictEqual(st.pot, 20);
@@ -135,9 +135,8 @@ test('joker op tijd telt dubbel', async () => {
   await Poule.put(P, 'vsp/' + anne + '-' + id, { s: [5, 4] });
   await Poule.put(P, 'jok/' + anne + '-5', { m: id });
   await sleep(5);
-  rd.matches[0].start = Date.now();
-  rd.matches[0].res = [5, 4];
-  await Poule.put(P, 'rnd/5', rd);
+  await Poule.put(P, 'tij/' + id, { start: Date.now() });
+  await Poule.put(P, 'uit/' + id, { res: [5, 4] });
   let M;
   ({ M } = await Poule.load(code));
   // (2 + 3) × factor kwartfinale 2 × joker 2 = 20
@@ -156,17 +155,64 @@ test('inlogcode: zelfde account op een ander toestel', async () => {
   await assert.rejects(Poule.useLoginCode('onzin'));
 });
 
-test('beheerder vervangen wordt opgemerkt', async () => {
+test('beheerder kan niet vervangen worden', async () => {
   as('wouter');
-  const code = await Poule.create({ name: 'TOFU' }, 'Wouter');
+  const code = await Poule.create({ name: 'Echt' }, 'Wouter');
+  const wouter = (await Poule.me()).pid;
   as('indringer');
   const Pi = await Poule.derive(code);
   const me = await Poule.me();
   await Poule.put(Pi, 'cfg/main', Object.assign(Poule.defaultCfg(), { name: 'Overgenomen', admin: { pid: me.pid, pub: me.pub }, members: {} }));
+  for (const who of ['wouter', 'nieuwkomer']) {
+    as(who);
+    const { M } = await Poule.load(code);
+    assert.strictEqual(M.cfg.name, 'Echt', who + ' ziet de echte instellingen');
+    assert.strictEqual(M.admin.pid, wouter);
+    assert.ok(!M.adminChanged);
+  }
+});
+
+test('databaseregels: niets wissen, overschrijven of terugdateren', async () => {
   as('wouter');
-  const { M } = await Poule.load(code);
-  assert.strictEqual(M.cfg, null);
-  assert.ok(M.adminChanged);
+  const code = await Poule.create({ name: 'Regels' }, 'Wouter');
+  const P = await Poule.derive(code);
+  const base = db.url + '/p/' + P.room;
+  const req = (path, method, body) => fetch(base + path + '.json', { method, headers: { 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) });
+  const tree = await (await req('', 'GET')).json();
+  const cfgKey = Object.keys(tree.cfg)[0];
+  assert.strictEqual((await req('', 'DELETE')).ok, false, 'hele poule wissen');
+  assert.strictEqual((await req('/cfg/' + cfgKey, 'DELETE')).ok, false, 'record wissen');
+  assert.strictEqual((await req('/cfg/' + cfgKey, 'PUT', { v: 'x', t: { '.sv': 'timestamp' } })).ok, false, 'overschrijven');
+  assert.strictEqual((await req('/vsp/a-b~x1', 'PUT', { v: 'x', t: 1 })).ok, false, 'terugdateren');
+  assert.strictEqual((await req('/vsp/a-b~x2', 'PUT', { v: 'x', t: { '.sv': 'timestamp' }, extra: 1 })).ok, false, 'extra veld');
+  assert.strictEqual((await req('/VSP/a-b~x3', 'PUT', { v: 'x', t: { '.sv': 'timestamp' } })).ok, false, 'verkeerde soort');
+  assert.strictEqual((await req('/vsp/a-b~x4', 'PUT', { v: 'x', t: { '.sv': 'timestamp' } })).ok, true, 'nieuw record met servertijd mag');
+  assert.strictEqual((await fetch(db.url + '/p.json')).ok, false, 'niet alle poules uitlezen');
+});
+
+test('oude poule (onder /r) wordt overgezet', async () => {
+  as('wouter');
+  const code = await Poule.create({ name: 'Oud' }, 'Wouter');
+  const wouter = (await Poule.me()).pid;
+  const { P } = await Poule.load(code);
+  await Poule.put(P, 'bon/' + wouter + '-kampioen', { a: 'Littler' });
+  // nabootsen dat dit nog in het oude formaat (zonder versies) onder /r stond
+  const old = {};
+  for (const [soort, recs] of Object.entries(db.data.p[P.room])) {
+    old[soort] = {};
+    for (const [key, val] of Object.entries(recs)) old[soort][key.split('~')[0]] = val;
+  }
+  delete db.data.p[P.room];
+  db.data.r = db.data.r || {};
+  db.data.r[P.room] = old;
+  let M;
+  ({ M } = await Poule.load(code));
+  assert.ok(M.legacy, 'oude poule herkend');
+  assert.ok(await Poule.migrate(code));
+  ({ M } = await Poule.load(code));
+  assert.ok(!M.legacy);
+  assert.strictEqual(M.cfg.name, 'Oud');
+  assert.strictEqual(Poule.latest(M.bonus[wouter].kampioen).a, 'Littler', 'eigen antwoord overgezet');
 });
 
 test('volgende ronde vanzelf', async () => {
@@ -217,7 +263,7 @@ test('cache van handtekeningen laat geen aangepast bericht door', async () => {
   await Poule.put(P, 'vsp/' + me + '-mx', { s: [3, 0] });
   const recs = await Poule.fetchAll(P);
   let M = await Poule.build(P, recs); // vult de cache
-  assert.deepStrictEqual(M.preds[me].mx.s, [3, 0]);
+  assert.deepStrictEqual(Poule.latest(M.preds[me].mx).s, [3, 0]);
   const echt = recs.find(r => r.path === 'vsp/' + me + '-mx');
   const nep = Object.assign({}, echt, { j: JSON.stringify({ s: [0, 3] }) }); // zelfde handtekening, ander bericht
   M = await Poule.build(P, recs.map(r => (r === echt ? nep : r)));

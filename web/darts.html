@@ -152,7 +152,7 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&a
 const eur = n => '€' + (Math.round((n || 0) * 100) / 100).toLocaleString('nl-NL', { maximumFractionDigits: 2 });
 const nl = n => String(n).replace('.', ',');
 const WEB_BASE = 'https://woetoe.github.io/poule-app/web/';
-let P = null, M = null, ME = null, busy = false, again = false, queue = Promise.resolve(), tTimer;
+let P = null, M = null, ME = null, busy = false, again = false, queue = Promise.resolve(), tTimer, migrated = false;
 
 function toast(msg) {
   $('toast').textContent = msg; $('toast').hidden = false;
@@ -267,7 +267,12 @@ async function refresh(quiet) {
   if (busy) { again = true; return; } // loopt al: daarna nog één keer, zodat niets gemist wordt
   busy = true;
   try {
-    const r = await Poule.load(P.code);
+    let r = await Poule.load(P.code);
+    if (!migrated) {
+      // eenmalig per keer openen: oude poule (van vóór de strengere regels) overzetten
+      migrated = true;
+      try { if (await Poule.migrate(P.code)) r = await Poule.load(P.code); } catch (e) { /* volgende keer opnieuw */ }
+    }
     P = r.P; M = r.M;
     render();
   } catch (e) { if (!quiet) fail(e); }
@@ -283,6 +288,7 @@ function render() {
     return;
   }
   if (!M.cfg) { $('main').innerHTML = '<h2>Poule niet gevonden</h2><p class="lead">Deze poule bestaat (nog) niet.</p>'; return; }
+  if (M.legacy && !isAdmin()) toast('Deze poule krijgt de nieuwe beveiliging zodra de beheerder de app opent.');
   const c = M.cfg;
   $('hName').textContent = c.name;
   document.title = c.name;
@@ -326,7 +332,7 @@ function vPredict() {
   const order = [open, ...rs.filter(r => r !== open)];
   $('main').innerHTML = order.map(rd => {
     const jm = Poule.jokerOf(M, ME.pid, rd), rStart = Poule.roundStart(rd), jOpen = c.joker && T < rStart;
-    const myJ = ((M.jokers[ME.pid] || {})[String(rd.n)] || {}).m;
+    const myJ = (Poule.latest((M.jokers[ME.pid] || {})[String(rd.n)]) || {}).m;
     const ms = rd.matches.slice().sort(byStart);
     return `<div class="rhead"><h2>${esc(rd.name)}</h2><span class="note">best of ${rd.bo} sets · punten ×${nl(Poule.factorOf(c, rd.n))}${c.joker ? (jOpen ? ' · joker kiezen tot ' + (isFinite(rStart) ? Poule.fmtTime(rStart) : 'de eerste partij') : ' · joker staat vast') : ''}</span></div>
       <div class="grid">${ms.map(m => matchCard(rd, m, T, jOpen ? myJ : jm, jOpen)).join('')}</div>`;
@@ -335,8 +341,9 @@ function vPredict() {
 const when = t => (t ? Poule.fmtTime(t) : 'tijd volgt');
 const byStart = (a, b) => (a.start || Infinity) - (b.start || Infinity) || (a.pos || 0) - (b.pos || 0);
 function matchCard(rd, m, T, joker, jOpen) {
-  const pred = (M.preds[ME.pid] || {})[m.id], started = !!m.res || (!!m.start && T >= m.start), c = M.cfg;
-  const p = pred && pred.t < m.start ? pred.s : (pred && !started ? pred.s : null);
+  const started = !!m.res || (!!m.start && T >= m.start), c = M.cfg;
+  const shown = pid => (started ? Poule.predOf(M, pid, m) : Poule.latest((M.preds[pid] || {})[m.id]));
+  const pred = shown(ME.pid), p = pred ? pred.s : null;
   let body;
   if (!started) {
     const o = Poule.scoreOptions(rd.bo), n = (rd.bo + 1) / 2;
@@ -357,8 +364,7 @@ function matchCard(rd, m, T, joker, jOpen) {
   }
   const showOthers = c.showOthers === 'always' || started;
   const others = showOthers ? Object.keys(c.members).filter(pid => pid !== ME.pid).map(pid => {
-    const pr = (M.preds[pid] || {})[m.id];
-    const s = pr && pr.t < m.start ? pr.s : (!started && pr ? pr.s : null);
+    const pr = shown(pid), s = pr ? pr.s : null;
     const ok = m.res && s && Math.sign(s[0] - s[1]) === Math.sign(m.res[0] - m.res[1]);
     return `<span class="${ok ? 'ok' : ''}">${esc(c.members[pid].name)} ${s ? s.join('-') : '–'}</span>`;
   }).join('') : '';
@@ -387,7 +393,8 @@ function vBonus() {
   const qs = M.questions, c = M.cfg, T = now();
   if (!qs.length) { $('main').innerHTML = '<h2>Bonusvragen</h2><div class="empty">Nog geen bonusvragen.</div>'; return; }
   $('main').innerHTML = `<h2>Bonusvragen</h2><p class="lead">Antwoorden kun je wijzigen tot de vraag sluit. Daarna zie je wat iedereen heeft ingevuld.</p><div class="grid">${qs.map(q => {
-    const a = (M.bonus[ME.pid] || {})[q.id], val = a ? a.a : '', closed = T >= q.close, done = q.out !== '' && q.out != null;
+    const closed = T >= q.close, done = q.out !== '' && q.out != null;
+    const a = closed ? Poule.answerOf(M, ME.pid, q) : Poule.latest((M.bonus[ME.pid] || {})[q.id]), val = a ? a.a : '';
     const dis = closed ? ' disabled' : '';
     let ctl;
     if (q.type === 'Ja/Nee') ctl = `<div class="yn">${['Ja', 'Nee'].map(v => `<button data-q="${q.id}" data-v="${v}" aria-pressed="${val === v}"${dis}>${v}</button>`).join('')}</div>`;
@@ -396,7 +403,7 @@ function vBonus() {
     const p = Poule.bonusPoints(M, q, ME.pid);
     const chip = done ? `<span class="pts ${p ? 'hit' : 'miss'}">+${p} pnt</span>` : `<span class="pts max">${q.max} pnt</span>`;
     const all = closed || c.showOthers === 'always' ? Object.keys(c.members).filter(pid => pid !== ME.pid).map(pid => {
-      const x = (M.bonus[pid] || {})[q.id]; const v = x && x.t < q.close ? x.a : '';
+      const x = closed ? Poule.answerOf(M, pid, q) : Poule.latest((M.bonus[pid] || {})[q.id]); const v = x ? x.a : '';
       return `<span>${esc(c.members[pid].name)}: ${esc(v === '' ? '–' : nl(v))}</span>`;
     }).join('') : '';
     return `<article class="card q"><div class="meta"><span>${q.rule === 'Dichtstbij' ? 'dichtstbij wint' : esc(q.type)}</span>${chip}</div>
@@ -444,13 +451,16 @@ function vAdmin() {
   $('cp').addEventListener('click', async () => { try { await navigator.clipboard.writeText(link); toast('Link gekopieerd'); } catch (e) { toast('Kopiëren lukte niet; houd de link ingedrukt.'); } });
   $('main').querySelectorAll('[data-acc]').forEach(b => b.addEventListener('click', () => act(async () => {
     const r = M.requests.find(x => x.pid === b.dataset.acc);
-    const cfg = Object.assign({}, M.cfg, { members: Object.assign({}, M.cfg.members, { [r.pid]: { name: r.name, pub: r.pub } }) });
+    const cfg = Object.assign({}, M.cfg, { members: Object.assign({}, M.cfg.members, { [r.pid]: { name: r.name, pub: r.pub } }), rejected: (M.cfg.rejected || []).filter(x => x !== r.pid) });
     await Poule.put(P, 'cfg/main', cfg); toast(r.name + ' doet mee');
   })));
-  $('main').querySelectorAll('[data-rej]').forEach(b => b.addEventListener('click', () => act(async () => { await Poule.del(P, 'spe/' + b.dataset.rej); toast('Aanmelding geweigerd'); })));
+  $('main').querySelectorAll('[data-rej]').forEach(b => b.addEventListener('click', () => act(async () => {
+    const rejected = [...new Set([...(M.cfg.rejected || []), b.dataset.rej])];
+    await Poule.put(P, 'cfg/main', Object.assign({}, M.cfg, { rejected })); toast('Aanmelding geweigerd');
+  })));
   $('main').querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Zeker?'; return; }
-    act(async () => { const mem = Object.assign({}, M.cfg.members); delete mem[b.dataset.del]; await Poule.put(P, 'cfg/main', Object.assign({}, M.cfg, { members: mem })); await Poule.del(P, 'spe/' + b.dataset.del).catch(() => {}); toast('Verwijderd'); });
+    act(async () => { const mem = Object.assign({}, M.cfg.members); delete mem[b.dataset.del]; const rejected = [...new Set([...(M.cfg.rejected || []), b.dataset.del])]; await Poule.put(P, 'cfg/main', Object.assign({}, M.cfg, { members: mem, rejected })); toast('Verwijderd'); });
   }));
   $('aGo').addEventListener('click', () => {
     const n = +$('aR').value, a = $('aA').value.trim(), b = $('aB').value.trim(), d = $('aD').value, t = $('aT').value;
@@ -460,21 +470,23 @@ function vAdmin() {
   });
   $('main').querySelectorAll('[data-res]').forEach(s => s.addEventListener('change', () => act(async () => {
     const rd = JSON.parse(JSON.stringify(M.rounds[s.dataset.r])), m = rd.matches.find(x => x.id === s.dataset.res);
+    if (!m) return;
     m.res = s.value ? s.value.split('-').map(Number) : null;
-    if (m.res && !m.start) m.start = Date.now(); // zonder tijd: voorspellingen sluiten nu
-    const nx = await saveRounds(Object.assign({}, M.rounds, { [rd.n]: rd }), [rd.n]);
+    if (m.res && !m.start) { m.start = Date.now(); await Poule.put(P, 'tij/' + m.id, { start: m.start }); } // zonder tijd: voorspellingen sluiten nu
+    await Poule.put(P, 'uit/' + m.id, { res: m.res });
+    const nx = await saveRounds(Object.assign({}, M.rounds, { [rd.n]: rd }), []);
     toast(m.res ? (nx ? 'Uitslag opgeslagen · volgende ronde bijgewerkt' : 'Uitslag opgeslagen') : 'Uitslag gewist');
   })));
   $('main').querySelectorAll('[data-time]').forEach(i => i.addEventListener('change', () => act(async () => {
     const t = Poule.fromAmsLocal(i.value);
     if (!t) { toast('Vul datum en tijd in.'); return; }
     const rd = JSON.parse(JSON.stringify(M.rounds[i.dataset.r])), m = rd.matches.find(x => x.id === i.dataset.time);
-    m.start = t;
-    await Poule.put(P, 'rnd/' + rd.n, rd); toast('Tijd opgeslagen: ' + Poule.fmtTime(t));
+    if (!m) return;
+    await Poule.put(P, 'tij/' + m.id, { start: t }); toast('Tijd opgeslagen: ' + Poule.fmtTime(t));
   })));
   $('main').querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Zeker?'; return; }
-    act(async () => { const rd = JSON.parse(JSON.stringify(M.rounds[b.dataset.r])); rd.matches = rd.matches.filter(x => x.id !== b.dataset.rm); await Poule.put(P, 'rnd/' + rd.n, rd); toast('Partij verwijderd'); });
+    act(async () => { const rd = JSON.parse(JSON.stringify(M.rounds[b.dataset.r])); rd.matches = rd.matches.filter(x => x.id !== b.dataset.rm); await Poule.put(P, 'rnd/' + rd.n, Poule.structure(rd)); toast('Partij verwijderd'); });
   }));
   $('main').querySelectorAll('[data-out]').forEach(i => i.addEventListener('change', () => act(async () => {
     const list = M.questions.map(q => (q.id === i.dataset.out ? Object.assign({}, q, { out: String(i.value).trim() }) : q));
@@ -509,7 +521,7 @@ function act(fn) {
 async function saveRounds(all, changedNs) {
   const adv = await Poule.advance(all);
   const todo = new Set([...changedNs.map(String), ...adv.changed.map(String)]);
-  for (const n of todo) await Poule.put(P, 'rnd/' + n, adv.rounds[n]);
+  for (const n of todo) await Poule.put(P, 'rnd/' + n, Poule.structure(adv.rounds[n]));
   return adv.changed.length;
 }
 
@@ -528,13 +540,18 @@ async function addMatches(list) {
       rd.matches.push({ id, a: x.a, b: x.b, start: x.start, res: x.res || null, pos }); added++;
     }
   }
+  const structChanged = Object.keys(touched).map(Number);
+  for (const x of list) {
+    if (!x.res) continue;
+    const id = await Poule.matchId(x.n, x.a, x.b);
+    await Poule.put(P, 'uit/' + id, { res: x.res });
+  }
   const all = Object.assign({}, M.rounds, touched);
-  const nx = await saveRounds(all, Object.keys(touched).map(Number));
+  const nx = await saveRounds(all, structChanged);
   return { added, updated, next: nx };
 }
 
 /* Excel: tabblad Partijen en/of Vragen */
-const p2 = n => String(n).padStart(2, '0');
 function cellDate(v) {
   if (v instanceof Date && !isNaN(v)) return [v.getFullYear(), v.getMonth() + 1, v.getDate()];
   if (typeof v === 'number' && window.XLSX) { const d = XLSX.SSF.parse_date_code(v); return [d.y, d.m, d.d]; }
@@ -657,7 +674,7 @@ $('main').addEventListener('click', e => {
     const mid = b.dataset.m, s = b.dataset.s.split('-').map(Number);
     const rd = M.rounds[b.dataset.r], m = rd && rd.matches.find(x => x.id === mid);
     if (!m || m.res || (m.start && now() >= m.start)) { toast('Deze partij is al begonnen.'); return; }
-    (M.preds[ME.pid] = M.preds[ME.pid] || {})[mid] = { s, t: now() - 1 };
+    const pp = (M.preds[ME.pid] = M.preds[ME.pid] || {}); (pp[mid] = pp[mid] || []).push({ s, t: now() - 1 });
     render();
     Poule.put(P, 'vsp/' + ME.pid + '-' + mid, { s }).then(t => { if (t >= m.start) toast('Te laat: de partij was al begonnen.'); refresh(true); }, e => { fail(e); refresh(true); });
     return;
@@ -666,9 +683,9 @@ $('main').addEventListener('click', e => {
   if (j && isMember()) {
     const n = j.dataset.r, rd = M.rounds[n];
     if (now() >= Poule.roundStart(rd)) { toast('De joker staat al vast voor deze ronde.'); return; }
-    const cur = ((M.jokers[ME.pid] || {})[n] || {}).m;
+    const cur = (Poule.latest((M.jokers[ME.pid] || {})[n]) || {}).m;
     const m = cur === j.dataset.j ? '' : j.dataset.j;
-    (M.jokers[ME.pid] = M.jokers[ME.pid] || {})[n] = { m, t: now() - 1 };
+    const jj = (M.jokers[ME.pid] = M.jokers[ME.pid] || {}); (jj[n] = jj[n] || []).push({ m, t: now() - 1 });
     render();
     Poule.put(P, 'jok/' + ME.pid + '-' + n, { m }).then(() => { toast(m ? 'Joker gezet' : 'Joker weggehaald'); refresh(true); }, e => { fail(e); refresh(true); });
     return;
@@ -683,7 +700,7 @@ $('main').addEventListener('change', e => {
 function saveAnswer(qid, a) {
   const q = M.questions.find(x => x.id === qid);
   if (!q || now() >= q.close) { toast('Deze vraag is gesloten.'); return; }
-  (M.bonus[ME.pid] = M.bonus[ME.pid] || {})[qid] = { a, t: now() - 1 };
+  const bb = (M.bonus[ME.pid] = M.bonus[ME.pid] || {}); (bb[qid] = bb[qid] || []).push({ a, t: now() - 1 });
   if (tab() === 'bonus') vBonus();
   Poule.put(P, 'bon/' + ME.pid + '-' + qid, { a }).then(() => { toast('Antwoord opgeslagen'); refresh(true); }, e => { fail(e); refresh(true); });
 }

@@ -27,14 +27,13 @@ function snapshot(val) {
     child: p => snapshot(String(p).split('/').filter(Boolean).reduce((v, k) => (v && typeof v === 'object' ? v[k] : undefined), val))
   };
 }
-function evalRule(expr, vars, newData, data) {
+function evalRule(expr, vars, newData, data, now) {
   if (expr === true || expr === false) return expr;
   const names = Object.keys(vars);
   // $x.matches(/re/) uit de regeltaal → gewone JavaScript
   const js = String(expr).replace(/(\$[a-zA-Z_]+)\.matches\(/g, '__m($1, ');
-  // eslint-disable-next-line no-new-func
   const fn = new Function('newData', 'data', 'now', '__m', ...names, 'return (' + js + ');');
-  return !!fn(newData, data, Date.now(), (s, re) => re.test(s), ...names.map(n => vars[n]));
+  return !!fn(newData, data, now === undefined ? Date.now() : now, (s, re) => re.test(s), ...names.map(n => vars[n]));
 }
 /** Loopt de regels af langs een pad; geeft per niveau de regel-knoop en de gevonden $-variabelen. */
 function walkRules(rules, segs) {
@@ -55,22 +54,22 @@ function walkRules(rules, segs) {
 }
 const get = (root, segs) => segs.reduce((v, k) => (v && typeof v === 'object' ? v[k] : undefined), root);
 
-function allowed(rules, kind, segs, oldRoot, newRoot) {
+function allowed(rules, kind, segs, oldRoot, newRoot, now) {
   for (const { node, vars, depth } of walkRules(rules, segs)) {
     if (node && typeof node === 'object' && kind in node) {
       const at = segs.slice(0, depth);
-      if (evalRule(node[kind], vars, snapshot(get(newRoot, at)), snapshot(get(oldRoot, at)))) return true;
+      if (evalRule(node[kind], vars, snapshot(get(newRoot, at)), snapshot(get(oldRoot, at)), now)) return true;
     }
   }
   return false;
 }
 /** .validate: op elk niveau van het pad en in alles wat eronder geschreven is, voor zover er nieuwe gegevens staan. */
-function valid(rules, segs, oldRoot, newRoot) {
+function valid(rules, segs, oldRoot, newRoot, now) {
   for (const { node, vars, depth } of walkRules(rules, segs)) {
     if (!node || typeof node !== 'object' || !('.validate' in node)) continue;
     const at = segs.slice(0, depth), nv = get(newRoot, at);
     if (nv === undefined || nv === null) continue;
-    if (!evalRule(node['.validate'], vars, snapshot(nv), snapshot(get(oldRoot, at)))) return false;
+    if (!evalRule(node['.validate'], vars, snapshot(nv), snapshot(get(oldRoot, at)), now)) return false;
   }
   const below = (node, vars, at) => {
     const nv = get(newRoot, at);
@@ -83,7 +82,7 @@ function valid(rules, segs, oldRoot, newRoot) {
       }
       if (next === undefined || typeof next !== 'object') continue;
       const p = at.concat(k);
-      if ('.validate' in next && !evalRule(next['.validate'], v2, snapshot(get(newRoot, p)), snapshot(get(oldRoot, p)))) return false;
+      if ('.validate' in next && !evalRule(next['.validate'], v2, snapshot(get(newRoot, p)), snapshot(get(oldRoot, p)), now)) return false;
       if (!below(next, v2, p)) return false;
     }
     return true;
@@ -157,7 +156,7 @@ function start(opts) {
       if (!allowed(rules, '.read', segs, db.data, db.data)) { json(401, { error: 'Permission denied' }); return; }
       if ((req.headers.accept || '').includes('text/event-stream')) {
         res.writeHead(200, Object.assign({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' }, cors));
-        const st = { segs, res, send: (ev, data) => { try { res.write('event: ' + ev + '\ndata: ' + JSON.stringify(data) + '\n\n'); } catch (e) {} } };
+        const st = { segs, res, send: (ev, data) => { try { res.write('event: ' + ev + '\ndata: ' + JSON.stringify(data) + '\n\n'); } catch (e) { /* stream al dicht */ } } };
         const v = get(db.data, segs);
         st.send('put', { path: '/', data: v === undefined ? null : v });
         db.streams.add(st);
@@ -186,7 +185,7 @@ function start(opts) {
       let next = db.data;
       for (const w of writes) next = setAt(next, w.segs, w.val) || {};
       for (const w of writes) {
-        if (!allowed(rules, '.write', w.segs, db.data, next) || !valid(rules, w.segs, db.data, next)) {
+        if (!allowed(rules, '.write', w.segs, db.data, next, now) || !valid(rules, w.segs, db.data, next, now)) {
           db.log.push({ denied: req.method, path: '/' + w.segs.join('/') });
           json(401, { error: 'Permission denied' });
           return;
@@ -205,7 +204,7 @@ function start(opts) {
       db.port = server.address().port;
       db.url = 'http://127.0.0.1:' + db.port;
       /** Alle meelees-verbindingen verbreken (alsof het netwerk even wegviel). */
-      db.cut = () => { for (const st of [...db.streams]) { try { st.res.destroy(); } catch (e) {} } db.streams.clear(); };
+      db.cut = () => { for (const st of [...db.streams]) { try { st.res.destroy(); } catch (e) { /* al dicht */ } } db.streams.clear(); };
       db.stop = () => new Promise(r => { db.cut(); server.close(() => r()); if (server.closeAllConnections) server.closeAllConnections(); });
       res(db);
     });
@@ -243,7 +242,7 @@ class EventSource {
     req.on('error', () => { if (this._closed) return; this.readyState = 2; this.onerror && this.onerror({}); });
     this._req = req;
   }
-  close() { this._closed = true; this.readyState = 2; try { this._req.destroy(); } catch (e) {} }
+  close() { this._closed = true; this.readyState = 2; try { this._req.destroy(); } catch (e) { /* al dicht */ } }
 }
 
 module.exports = { start, EventSource };

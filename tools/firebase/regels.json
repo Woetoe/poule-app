@@ -36,6 +36,20 @@
           }
         }
       }
+    },
+    "p": {
+      "$ruimte": {
+        ".read": "$ruimte.length == 32",
+        "$soort": {
+          "$id": {
+            ".write": "$ruimte.length == 32 && $soort.matches(/^[a-z]{3,16}$/) && $id.length <= 64 && !data.exists() && newData.exists()",
+            ".validate": "newData.hasChildren(['v', 't']) && newData.child('v').isString() && newData.child('v').val().length < 1000000 && newData.child('t').val() == now",
+            "$veld": {
+              ".validate": "$veld == 'v' || $veld == 't'"
+            }
+          }
+        }
+      }
     }
   }
 }

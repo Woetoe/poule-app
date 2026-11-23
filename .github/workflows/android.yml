@@ -44,9 +44,22 @@ jobs:
         with:
           node-version: '22'
 
-      # Eerst de tests: klopt er iets niet, dan komt er geen nieuwe versie uit.
-      - name: Tests
-        run: node --test tests/*.test.js
+      # Eerst alle controles: klopt er iets niet, dan komt er geen nieuwe versie uit.
+      - name: ESLint en Node-tests
+        run: |
+          npm ci --no-audit --no-fund
+          npx eslint .
+          node --test tests/*.test.js
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: pylint en pytest
+        run: |
+          pip install pylint==3.3.3 pytest==8.3.4
+          pylint tools/uitgifte.py tests/test_uitgifte.py
+          pytest -q
 
       - uses: actions/setup-java@v4
         with:
@@ -66,7 +79,7 @@ jobs:
 
       - name: APK bouwen
         working-directory: android
-        run: gradle :app:assembleRelease --no-daemon --stacktrace
+        run: gradle :app:lintRelease :app:assembleRelease --no-daemon --stacktrace
 
       - name: APK controleren en hernoemen
         run: |

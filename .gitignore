@@ -1,8 +1,11 @@
-android/.gradle/
-android/build/
-android/app/build/
-android/local.properties
-android/app/src/main/assets/
 *.apk
-web/manifest.json
+.pytest_cache/
+__pycache__/
+android/.gradle/
+android/app/build/
+android/app/src/main/assets/
+android/build/
+android/local.properties
+node_modules/
 tests/node_modules/
+web/manifest.json
