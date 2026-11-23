@@ -168,3 +168,43 @@ test('beheerder vervangen wordt opgemerkt', async () => {
   assert.strictEqual(M.cfg, null);
   assert.ok(M.adminChanged);
 });
+
+test('volgende ronde vanzelf', async () => {
+  const mk = async (n, pos, a, b, res) => ({ id: await Poule.matchId(n, a, b), a, b, start: 1, res, pos });
+  const rounds = { 1: { n: 1, name: 'Ronde 1', bo: 5, matches: [
+    await mk(1, 1, 'A', 'B', [3, 1]), await mk(1, 2, 'C', 'D', [0, 3]),
+    await mk(1, 3, 'E', 'F', [3, 2]), await mk(1, 4, 'G', 'H', null)] } };
+  let r = await Poule.advance(rounds);
+  assert.deepStrictEqual(r.changed, [2]);
+  assert.strictEqual(r.rounds[2].matches.length, 1, 'alleen plek 1: plek 3-4 is nog niet klaar');
+  const m = r.rounds[2].matches[0];
+  assert.deepStrictEqual([m.a, m.b, m.pos, m.start, m.res], ['A', 'D', 1, null, null]);
+  assert.strictEqual(m.id, await Poule.matchId(2, 'A', 'D'), 'zelfde id als bij Excel-import');
+  assert.strictEqual(r.rounds[2].bo, 5);
+
+  // opnieuw draaien verandert niets
+  assert.deepStrictEqual((await Poule.advance(r.rounds)).changed, []);
+
+  // uitslag verbeterd (C won toch): nog niet gespeelde partij in ronde 2 wordt bijgewerkt
+  r.rounds[1].matches[1].res = [3, 2];
+  r = await Poule.advance(r.rounds);
+  assert.deepStrictEqual([r.rounds[2].matches[0].a, r.rounds[2].matches[0].b], ['A', 'C']);
+
+  // gespeelde partij wordt niet meer aangepast
+  r.rounds[2].matches[0].res = [3, 0];
+  r.rounds[1].matches[0].res = [1, 3];
+  r = await Poule.advance(r.rounds);
+  assert.deepStrictEqual([r.rounds[2].matches[0].a, r.rounds[2].matches[0].res], ['A', [3, 0]]);
+
+  // tot en met de finale (bo13)
+  const r6 = { 6: { n: 6, name: 'Halve finale', bo: 11, matches: [await mk(6, 1, 'P', 'Q', [6, 2]), await mk(6, 2, 'R', 'S', [4, 6])] } };
+  const f = (await Poule.advance(r6)).rounds[7];
+  assert.deepStrictEqual([f.name, f.bo, f.matches[0].a, f.matches[0].b], ['Finale', 13, 'P', 'S']);
+});
+
+test('NL-tijd heen en terug', () => {
+  const t = Poule.amsToEpoch(2026, 12, 20, 13, 30);
+  assert.strictEqual(Poule.amsLocal(t), '2026-12-20T13:30');
+  assert.strictEqual(Poule.fromAmsLocal('2026-12-20T13:30'), t);
+  assert.strictEqual(Poule.fromAmsLocal(''), null);
+});

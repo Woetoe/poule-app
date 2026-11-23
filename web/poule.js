@@ -309,7 +309,7 @@
   // ---------------------------------------------------------------- punten
   const sgn = x => Math.sign(x[0] - x[1]);
   const factorOf = (cfg, n) => Number((cfg.factors || [])[n - 1] || 1);
-  const roundStart = rd => Math.min(...(rd.matches || []).map(m => m.start || Infinity));
+  const roundStart = rd => Math.min(Infinity, ...(rd.matches || []).map(m => m.start || Infinity));
 
   /** Punten voor één voorspelling. Telt alleen als hij vóór de start is opgeslagen. */
   function matchPoints(cfg, rd, m, pred, joker) {
@@ -399,6 +399,56 @@
     if (Math.max(a, b) !== need || Math.min(a, b) >= need) return null;
     return [a, b];
   }
+  /** Winnaar van een gespeelde partij, anders null. */
+  const winnerOf = m => (m && m.res ? (m.res[0] > m.res[1] ? m.a : m.b) : null);
+
+  /**
+   * Volgende ronde vanzelf: partij p in ronde n+1 = winnaar van plek 2p-1 tegen winnaar van plek 2p in ronde n
+   * (de volgorde van de loting). Maakt ontbrekende partijen aan (tijd volgt) en werkt nog niet gespeelde partijen bij
+   * als een uitslag is verbeterd. Geeft de bijgewerkte rondes terug en welke rondes veranderd zijn.
+   */
+  async function advance(roundsIn) {
+    const rounds = JSON.parse(JSON.stringify(roundsIn || {}));
+    const changed = new Set();
+    for (let n = 1; n < ROUNDS.length; n++) {
+      const rd = rounds[n];
+      if (!rd || !rd.matches) continue;
+      const byPos = {};
+      for (const m of rd.matches) if (m.pos) byPos[m.pos] = m;
+      const maxPos = Math.max(0, ...Object.keys(byPos).map(Number));
+      for (let p = 1; 2 * p - 1 <= maxPos; p++) {
+        const wa = winnerOf(byPos[2 * p - 1]), wb = winnerOf(byPos[2 * p]);
+        if (!wa || !wb) continue;
+        const def = ROUNDS[n];
+        const nx = rounds[n + 1] = rounds[n + 1] || { n: n + 1, name: def.name, bo: def.bo, matches: [] };
+        const id = await matchId(n + 1, wa, wb);
+        const ex = nx.matches.find(m => m.pos === p);
+        if (ex) {
+          if (ex.id === id || ex.res) continue; // al goed, of al gespeeld: niet aankomen
+          Object.assign(ex, { id, a: wa, b: wb });
+        } else if (nx.matches.some(m => m.id === id)) {
+          nx.matches.find(m => m.id === id).pos = p; // met de hand of via Excel al toegevoegd
+        } else {
+          nx.matches.push({ id, a: wa, b: wb, start: null, res: null, pos: p });
+        }
+        changed.add(n + 1);
+      }
+    }
+    return { rounds, changed: [...changed] };
+  }
+
+  /** Epoch → 'JJJJ-MM-DDTUU:MM' in NL-tijd (voor een datetime-local-veld). */
+  function amsLocal(t) {
+    if (!t) return '';
+    const off = amsOffset(t), d = new Date(t + off);
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}T${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
+  }
+  function fromAmsLocal(s) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(String(s || ''));
+    return m ? amsToEpoch(+m[1], +m[2], +m[3], +m[4], +m[5]) : null;
+  }
+
   function scoreOptions(bo) {
     const n = (bo + 1) / 2, o = [];
     for (let i = 0; i < n; i++) o.push([n, i]);
@@ -410,7 +460,7 @@
     DEFAULT_DB, ROUNDS, setEnv: e => Object.assign(env, e), cleanCode, derive, me, loginCode, useLoginCode,
     myPoules, remember, forget, known, put, del, fetchAll, build, load, create, join, defaultCfg, defaultQuestions,
     amsToEpoch, fmtTime, matchPoints, jokerOf, bonusPoints, standings, roundStart, factorOf, matchId, parseScore,
-    scoreOptions, norm, numv, textMatch, samePub, pubOf
+    scoreOptions, norm, numv, textMatch, samePub, pubOf, advance, winnerOf, amsLocal, fromAmsLocal
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Poule = api;
