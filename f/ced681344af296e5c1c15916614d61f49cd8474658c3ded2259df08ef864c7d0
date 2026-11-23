@@ -118,7 +118,16 @@
     const k = await subtle().importKey('jwk', priv, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
     return b64(await subtle().sign({ name: 'ECDSA', hash: 'SHA-256' }, k, te.encode(msg)));
   }
+  const verified = new Map(); // (sleutel, handtekening, bericht) → klopt; scheelt veel rekenwerk bij elke verversing
   async function verify(pub, msg, sig) {
+    const ck = pub && pub.x + '|' + pub.y + '|' + sig + '|' + msg;
+    if (ck && verified.has(ck)) return verified.get(ck);
+    const ok = await verifyNow(pub, msg, sig);
+    if (verified.size > 20000) verified.clear();
+    if (ck) verified.set(ck, ok);
+    return ok;
+  }
+  async function verifyNow(pub, msg, sig) {
     try {
       const k = await subtle().importKey('jwk', pubOf(pub), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
       return await subtle().verify({ name: 'ECDSA', hash: 'SHA-256' }, k, unb64(sig), te.encode(msg));
@@ -155,6 +164,7 @@
     const r = await env.fetch(dbUrl() + '/r/' + P.room + '/' + path + '.json', { method: 'DELETE' });
     if (!r.ok) throw new Error('Verwijderen lukte niet (' + r.status + ').');
   }
+  const unsealed = new Map(); // versleutelde tekst → inhoud (dezelfde tekst ontsleutelt altijd hetzelfde)
   /** Alles van de poule ophalen en ontsleutelen (nog niet gecontroleerd). */
   async function fetchAll(P) {
     const r = await env.fetch(dbUrl() + '/r/' + P.room + '.json?t=' + env.now(), { cache: 'no-store' });
@@ -167,7 +177,13 @@
         const node = group[id];
         if (!node || typeof node.v !== 'string') continue;
         try {
-          const o = await unseal(P.key, node.v);
+          const ck = P.room + '|' + node.v;
+          let o = unsealed.get(ck);
+          if (!o) {
+            o = await unseal(P.key, node.v);
+            if (unsealed.size > 20000) unsealed.clear();
+            unsealed.set(ck, o);
+          }
           out.push({ path: soort + '/' + id, soort, id, j: o.j, by: o.by, s: o.s, t: node.t });
         } catch (e) { /* niet te ontsleutelen: overslaan */ }
       }
