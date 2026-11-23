@@ -152,7 +152,7 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&a
 const eur = n => '€' + (Math.round((n || 0) * 100) / 100).toLocaleString('nl-NL', { maximumFractionDigits: 2 });
 const nl = n => String(n).replace('.', ',');
 const WEB_BASE = 'https://woetoe.github.io/poule-app/web/';
-let P = null, M = null, ME = null, busy = false, tTimer;
+let P = null, M = null, ME = null, busy = false, again = false, queue = Promise.resolve(), tTimer;
 
 function toast(msg) {
   $('toast').textContent = msg; $('toast').hidden = false;
@@ -264,14 +264,17 @@ const rounds = () => Object.values(M.rounds).sort((a, b) => a.n - b.n);
 const tab = () => { const t = location.hash.slice(1); return TABS.some(x => x[0] === t) && (t !== 'beheer' || isAdmin()) ? t : 'voorspel'; };
 
 async function refresh(quiet) {
-  if (busy) return;
+  if (busy) { again = true; return; } // loopt al: daarna nog één keer, zodat niets gemist wordt
   busy = true;
   try {
     const r = await Poule.load(P.code);
     P = r.P; M = r.M;
     render();
   } catch (e) { if (!quiet) fail(e); }
-  finally { busy = false; }
+  finally {
+    busy = false;
+    if (again) { again = false; refresh(true); }
+  }
 }
 
 function render() {
@@ -478,15 +481,28 @@ function vAdmin() {
     await Poule.put(P, 'vrg/main', { list }); toast('Uitkomst opgeslagen');
   })));
   $('sGo').addEventListener('click', () => {
-    const cfg = readCfg(M.cfg);
-    if (!prizeOk(cfg)) { toast('De prijspercentages moeten samen 100% zijn.'); return; }
-    act(async () => { await Poule.put(P, 'cfg/main', cfg); toast('Instellingen opgeslagen'); });
+    if (!prizeOk(readCfg(M.cfg))) { toast('De prijspercentages moeten samen 100% zijn.'); return; }
+    const form = readCfg({}); // formulier nu uitlezen, leden en beheerder pas bij het opslaan (nieuwste stand)
+    act(async () => { await Poule.put(P, 'cfg/main', Object.assign({}, M.cfg, form)); toast('Instellingen opgeslagen'); });
   });
   $('file').addEventListener('change', importExcel);
 }
 
-async function act(fn) {
-  try { await fn(); await refresh(true); } catch (e) { fail(e); }
+/**
+ * Beheeracties één voor één, steeds op de nieuwste stand: zo overschrijven twee snelle acties
+ * (twee uitslagen, twee toelatingen) elkaar niet.
+ */
+function act(fn) {
+  let out;
+  queue = queue.then(async () => {
+    try {
+      const r = await Poule.load(P.code);
+      P = r.P; M = r.M;
+      out = await fn();
+    } catch (e) { fail(e); }
+    await refresh(true);
+  });
+  return queue.then(() => out); // resultaat van fn, of undefined als het mislukte
 }
 
 /** Slaat gewijzigde rondes op en zet daarna winnaars door naar de volgende ronde. Geeft het aantal bijgewerkte vervolgrondes. */
@@ -528,7 +544,11 @@ function cellDate(v) {
   return i ? [+i[1], +i[2], +i[3]] : null;
 }
 function cellTime(v) {
-  if (v instanceof Date && !isNaN(v)) return [v.getHours(), v.getMinutes()];
+  if (v instanceof Date && !isNaN(v)) {
+    // Excel bewaart tijden als breuk van een dag; 19:59:59,9 hoort 20:00 te zijn
+    const mins = Math.round(v.getHours() * 60 + v.getMinutes() + v.getSeconds() / 60 + v.getMilliseconds() / 60000) % 1440;
+    return [Math.floor(mins / 60), mins % 60];
+  }
   if (typeof v === 'number') { const mins = Math.round((v % 1) * 1440); return [Math.floor(mins / 60), mins % 60]; }
   const m = /(\d{1,2})[:.](\d{2})/.exec(String(v || ''));
   return m ? [+m[1], +m[2]] : null;
@@ -577,7 +597,8 @@ async function importExcel(e) {
         if (er.length) { errs.push(`Partijen rij ${i + 2}: ${er.join(', ')}`); return; }
         list.push({ n, a, b, start: Poule.amsToEpoch(d[0], d[1], d[2], t[0], t[1]), res });
       });
-      if (list.length) { const r = await addMatches(list); msgs.push(`${r.added} partijen toegevoegd, ${r.updated} bijgewerkt${r.next ? ', volgende ronde bijgewerkt' : ''}`); }
+      const r = list.length ? await act(() => addMatches(list)) : null;
+      if (r) { msgs.push(`${r.added} partijen toegevoegd, ${r.updated} bijgewerkt${r.next ? ', volgende ronde bijgewerkt' : ''}`); } else if (list.length) errs.push('Partijen opslaan lukte niet.');
     }
     const vr = sheetRows(wb, 'vragen');
     if (vr && vr.length > 1) {
@@ -601,7 +622,10 @@ async function importExcel(e) {
         if (q.type === 'Ja/Nee' && q.out) q.out = Poule.norm(q.out) === 'ja' ? 'Ja' : 'Nee';
         if (er.length) errs.push(`Vragen rij ${i + 2}: ${er.join(', ')}`); else { seen.add(q.id); qs.push(q); }
       });
-      if (qs.length) { await Poule.put(P, 'vrg/main', { list: qs }); msgs.push(`${qs.length} bonusvragen geladen`); }
+      if (qs.length) {
+        if (await act(async () => { await Poule.put(P, 'vrg/main', { list: qs }); return true; })) msgs.push(`${qs.length} bonusvragen geladen`);
+        else errs.push('Bonusvragen opslaan lukte niet.');
+      }
     }
     if (!msgs.length && !errs.length) errs.push('Geen tabblad "Partijen" of "Vragen" met inhoud gevonden.');
     rep.innerHTML = (msgs.length ? `<p class="okm">${esc(msgs.join(' · '))}.</p>` : '') + (errs.length ? `<p class="warn">${errs.length} rij(en) overgeslagen:</p><ul>${errs.slice(0, 20).map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '');
@@ -635,7 +659,7 @@ $('main').addEventListener('click', e => {
     if (!m || m.res || (m.start && now() >= m.start)) { toast('Deze partij is al begonnen.'); return; }
     (M.preds[ME.pid] = M.preds[ME.pid] || {})[mid] = { s, t: now() - 1 };
     render();
-    Poule.put(P, 'vsp/' + ME.pid + '-' + mid, { s }).then(t => { if (t >= m.start) toast('Te laat: de partij was al begonnen.'); refresh(true); }, fail);
+    Poule.put(P, 'vsp/' + ME.pid + '-' + mid, { s }).then(t => { if (t >= m.start) toast('Te laat: de partij was al begonnen.'); refresh(true); }, e => { fail(e); refresh(true); });
     return;
   }
   const j = e.target.closest('button[data-j]');
@@ -646,7 +670,7 @@ $('main').addEventListener('click', e => {
     const m = cur === j.dataset.j ? '' : j.dataset.j;
     (M.jokers[ME.pid] = M.jokers[ME.pid] || {})[n] = { m, t: now() - 1 };
     render();
-    Poule.put(P, 'jok/' + ME.pid + '-' + n, { m }).then(() => { toast(m ? 'Joker gezet' : 'Joker weggehaald'); refresh(true); }, fail);
+    Poule.put(P, 'jok/' + ME.pid + '-' + n, { m }).then(() => { toast(m ? 'Joker gezet' : 'Joker weggehaald'); refresh(true); }, e => { fail(e); refresh(true); });
     return;
   }
   const q = e.target.closest('button[data-q]');
@@ -661,7 +685,7 @@ function saveAnswer(qid, a) {
   if (!q || now() >= q.close) { toast('Deze vraag is gesloten.'); return; }
   (M.bonus[ME.pid] = M.bonus[ME.pid] || {})[qid] = { a, t: now() - 1 };
   if (tab() === 'bonus') vBonus();
-  Poule.put(P, 'bon/' + ME.pid + '-' + qid, { a }).then(() => { toast('Antwoord opgeslagen'); refresh(true); }, fail);
+  Poule.put(P, 'bon/' + ME.pid + '-' + qid, { a }).then(() => { toast('Antwoord opgeslagen'); refresh(true); }, e => { fail(e); refresh(true); });
 }
 
 /* ------------------------------------------------------------------ starten */

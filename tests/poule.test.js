@@ -208,3 +208,19 @@ test('NL-tijd heen en terug', () => {
   assert.strictEqual(Poule.fromAmsLocal('2026-12-20T13:30'), t);
   assert.strictEqual(Poule.fromAmsLocal(''), null);
 });
+
+test('cache van handtekeningen laat geen aangepast bericht door', async () => {
+  as('wouter');
+  const code = await Poule.create({ name: 'Cache' }, 'Wouter');
+  const { P } = await Poule.load(code);
+  const me = (await Poule.me()).pid;
+  await Poule.put(P, 'vsp/' + me + '-mx', { s: [3, 0] });
+  const recs = await Poule.fetchAll(P);
+  let M = await Poule.build(P, recs); // vult de cache
+  assert.deepStrictEqual(M.preds[me].mx.s, [3, 0]);
+  const echt = recs.find(r => r.path === 'vsp/' + me + '-mx');
+  const nep = Object.assign({}, echt, { j: JSON.stringify({ s: [0, 3] }) }); // zelfde handtekening, ander bericht
+  M = await Poule.build(P, recs.map(r => (r === echt ? nep : r)));
+  assert.ok(!M.preds[me], 'aangepaste voorspelling geweigerd');
+  assert.ok(M.rejected >= 1);
+});

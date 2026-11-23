@@ -60,13 +60,18 @@ try {
   await go(W, '/darts.html?p=' + code + '#voorspel'); await W.waitForSelector('button[data-s="3-0"]');
   await W.click('button[data-s="3-0"] >> nth=0'); await W.waitForSelector('text=Opgeslagen: 3-0');
   await go(W, '/darts.html?p=' + code + '#beheer'); await W.waitForSelector('select[data-res]');
-  await W.selectOption('select[data-res] >> nth=0', '3-1'); await toast(W, 'Uitslag opgeslagen');
+  // twee uitslagen vlak na elkaar: allebei moeten blijven staan
+  await W.selectOption('select[data-res] >> nth=0', '3-1');
+  await W.selectOption('select[data-res] >> nth=1', '0-3');
+  await toast(W, 'volgende ronde bijgewerkt');
   await W.fill('input[data-out="kampioen"]', 'Luke Littler'); await W.press('input[data-out="kampioen"]', 'Tab'); await toast(W, 'Uitkomst opgeslagen');
   step('uitslag + uitkomst ingevuld');
-  await W.selectOption('select[data-res] >> nth=1', '0-3'); await toast(W, 'volgende ronde bijgewerkt');
   await W.waitForSelector('h3:has-text("Ronde 2")');
   const r2 = await W.$$eval('.res span', els => els.map(e => e.textContent.trim()).filter(t => t.includes('Evans')));
-  console.log('   ronde 2:', r2); step('volgende ronde vanzelf');
+  console.log('   ronde 2:', r2);
+  const both = await W.$$eval('select[data-res]', ss => ss.slice(0, 2).map(x => x.value));
+  if (both.join() !== '3-1,0-3') throw new Error('uitslag kwijt: ' + both);
+  step('twee snelle uitslagen bewaard + volgende ronde vanzelf');
   await W.fill('input[data-time] >> nth=3', '2026-12-20T20:00'); await W.press('input[data-time] >> nth=3', 'Tab');
   await toast(W, 'Tijd opgeslagen'); console.log('   ', await W.textContent('#toast'));
   await go(W, '/darts.html?p=' + code + '#voorspel'); await W.waitForSelector('h2:has-text("Ronde 2")');
